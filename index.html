@@ -329,7 +329,7 @@ body.light {
           <div class="progress-track"><div class="progress-fill" id="month-progress-bar" style="width:0%;background:var(--orange)"></div></div>
           <div class="progress-labels"><span id="month-pct">0%</span><span>mois en cours</span></div>
         </div>
-        <div id="goal-suggestion" style="display:none;margin-top:14px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;line-height:1.5"></div>
+        <div id="goal-suggestion" style="display:none;margin-top:16px"></div>
       </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1040,11 +1040,39 @@ function renderStats() {
   if (consecutiveHits){
     const suggested=Math.round(WEEKLY_GOAL*1.2/50)*50;
     sgEl.style.display='';
-    sgEl.innerHTML=`💪 Tu atteins ton objectif semaine après semaine ! On passe à <strong>${suggested} pts</strong> ?<br><button onclick="adoptGoal(${suggested})" style="margin-top:8px;background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Adopter</button> <button onclick="document.getElementById('goal-suggestion').style.display='none'" style="margin-top:8px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Pas maintenant</button>`;
+    sgEl.innerHTML=`
+      <div style="background:linear-gradient(135deg,rgba(200,241,53,0.12),rgba(200,241,53,0.04));border:1px solid rgba(200,241,53,0.3);border-radius:var(--radius);padding:16px">
+        <div style="font-size:22px;margin-bottom:6px">💪</div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">Tu écrases ton objectif !</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">3 semaines de suite à 100%+. Prêt à monter la barre ?</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
+          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Actuel</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--muted)">${WEEKLY_GOAL}</div></div>
+          <div style="color:var(--accent);font-size:18px">→</div>
+          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Suggéré</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent)">${suggested}</div></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="adoptGoal(${suggested})" class="btn btn-primary btn-sm" style="flex:1">Adopter ✓</button>
+          <button onclick="document.getElementById('goal-suggestion').style.display='none'" class="btn btn-ghost btn-sm">Pas maintenant</button>
+        </div>
+      </div>`;
   } else if (consecutiveMisses){
     const suggested=Math.round(WEEKLY_GOAL*0.8/50)*50||50;
     sgEl.style.display='';
-    sgEl.innerHTML=`📉 L'objectif semble difficile à atteindre. On essaie <strong>${suggested} pts</strong> cette semaine ?<br><button onclick="adoptGoal(${suggested})" style="margin-top:8px;background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Adopter</button> <button onclick="document.getElementById('goal-suggestion').style.display='none'" style="margin-top:8px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Pas maintenant</button>`;
+    sgEl.innerHTML=`
+      <div style="background:rgba(255,149,0,0.06);border:1px solid rgba(255,149,0,0.25);border-radius:var(--radius);padding:16px">
+        <div style="font-size:22px;margin-bottom:6px">📉</div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">Objectif difficile à atteindre</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">3 semaines à moins de 70%. Un objectif plus accessible pour reprendre confiance ?</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
+          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Actuel</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--muted)">${WEEKLY_GOAL}</div></div>
+          <div style="color:var(--orange);font-size:18px">→</div>
+          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Suggéré</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--orange)">${suggested}</div></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="adoptGoal(${suggested})" class="btn btn-primary btn-sm" style="flex:1">Adopter ✓</button>
+          <button onclick="document.getElementById('goal-suggestion').style.display='none'" class="btn btn-ghost btn-sm">Pas maintenant</button>
+        </div>
+      </div>`;
   }
   const byExo={};
   weekLogs.forEach(l=>{byExo[l.exoId]=(byExo[l.exoId]||0)+l.reps;});
