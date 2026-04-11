@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Repflow">
+<title>Repflow</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap');
+:root {
+  --bg:#0f0f0f; --bg2:#1a1a1a; --bg3:#242424;
+  --border:rgba(255,255,255,0.08);
+  --text:#f0f0f0; --muted:#888;
+  --accent:#c8f135; --accent2:#a8d120;
+  --red:#ff5555; --orange:#ff9500;
+  --radius:16px; --radius-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+
+/* LOADING */
+.loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:16px}
+.loading.hidden{display:none}
+.spinner{width:36px;height:36px;border:3px solid var(--bg3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted)}
+
+/* SCREENS */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;background:var(--bg)}
+.screen.hidden{transform:translateX(100%);opacity:0;pointer-events:none}
+.screen.slide-left{transform:translateX(-30%);opacity:0;pointer-events:none}
+.scroll{flex:1;overflow-y:auto;padding:0 16px 100px;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{display:none}
+
+/* HEADER */
+.header{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.header-title{font-size:22px;font-weight:600}
+.header-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.icon-btn{width:40px;height:40px;border-radius:50%;background:var(--bg3);border:none;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:15px;font-family:'DM Sans',sans-serif;cursor:pointer;padding:0}
+.back-btn:active{color:var(--text)}
+
+/* NAV */
+.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 8px 24px;gap:2px;flex-shrink:0}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;border:none;background:none;color:var(--muted);font-size:10px;font-family:'DM Sans',sans-serif;cursor:pointer;border-radius:var(--radius-sm);transition:color .2s;position:relative}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{width:20px;height:20px}
+.nav-badge{position:absolute;top:4px;right:calc(50% - 14px);background:var(--red);color:#fff;font-size:9px;font-weight:600;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center}
+
+/* TABS */
+.tab{display:none} .tab.active{display:block}
+
+/* CARDS */
+.card{background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);padding:16px;margin-bottom:12px}
+
+/* LOGIN */
+.login-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px}
+.login-logo{font-size:48px;font-weight:600;color:var(--accent);font-family:'DM Mono',monospace;margin-bottom:8px}
+.login-tagline{font-size:16px;color:var(--muted);margin-bottom:48px;line-height:1.5}
+.input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;font-size:16px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.input:focus{border-color:var(--accent)}
+.btn{width:100%;padding:14px;border-radius:var(--radius-sm);font-size:16px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;border:none}
+.btn-primary{background:var(--accent);color:#0f0f0f}
+.btn-primary:active{background:var(--accent2);transform:scale(.98)}
+.btn-ghost{background:var(--bg2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:active{background:var(--bg3);transform:scale(.98)}
+.btn-sm{padding:8px 16px;font-size:14px;width:auto}
+
+/* NOTIF */
+.notif-banner{margin:8px 16px 0;padding:12px 14px;border-radius:var(--radius-sm);font-size:14px;line-height:1.4;display:flex;align-items:flex-start;gap:10px;flex-shrink:0}
+.notif-banner.info{background:rgba(200,241,53,0.1);border:1px solid rgba(200,241,53,0.25);color:var(--accent)}
+.notif-banner.warn{background:rgba(255,149,0,0.1);border:1px solid rgba(255,149,0,0.25);color:var(--orange)}
+.notif-banner.hidden{display:none}
+.notif-close{margin-left:auto;background:none;border:none;color:inherit;font-size:18px;cursor:pointer;line-height:1;padding:0;flex-shrink:0}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px 11px 38px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:rgba(200,241,53,0.4)}
+.search-input::placeholder{color:var(--muted)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.cat-header{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:16px 0 8px;font-weight:500}
+
+/* EXO BUTTONS */
+.exo-btn{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;cursor:pointer;transition:all .15s}
+.exo-btn:active{transform:scale(.98);border-color:var(--accent)}
+.exo-left{flex:1;min-width:0;text-align:left}
+.exo-name{font-size:16px;font-weight:500;color:var(--text)}
+.exo-pts-label{font-size:13px;color:var(--muted);margin-top:3px}
+.exo-arrow{color:var(--muted);font-size:20px;flex-shrink:0}
+.fav-btn{background:none;border:none;font-size:19px;padding:0 8px 0 4px;color:var(--bg3);cursor:pointer;line-height:1;flex-shrink:0;transition:color .15s,transform .15s;-webkit-text-stroke:1px var(--muted)}
+.fav-btn.fav-active{color:var(--accent);-webkit-text-stroke:0}
+.fav-btn:active{transform:scale(1.35)}
+
+/* LOG SCREEN */
+.log-exo-name{font-size:28px;font-weight:600;margin-bottom:4px}
+.log-exo-pts{font-size:14px;color:var(--muted);margin-bottom:8px}
+.reps-counter{display:flex;align-items:center;justify-content:center;gap:24px;margin:16px 0 32px}
+.reps-btn{width:56px;height:56px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);font-size:28px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;transition:all .1s}
+.reps-btn:active{transform:scale(.9)}
+.reps-val{font-size:72px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent);min-width:120px;text-align:center;line-height:1}
+.last-log{background:var(--bg3);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:24px;font-size:14px;color:var(--muted);text-align:center}
+.last-log strong{color:var(--text)}
+.success-flash{background:rgba(200,241,53,0.1);border:1px solid rgba(200,241,53,0.3);border-radius:var(--radius-sm);padding:12px;text-align:center;font-size:14px;color:var(--accent);margin-top:12px;display:none}
+.propose-link{text-align:center;margin-top:16px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+/* STATS */
+.week-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+.week-pts{font-size:36px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent)}
+.week-label{font-size:13px;color:var(--muted)}
+.progress-wrap{margin-bottom:8px}
+.progress-track{background:var(--bg3);border-radius:4px;height:6px;margin:8px 0 4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .5s cubic-bezier(.4,0,.2,1)}
+.progress-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.exo-stat{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.exo-stat:last-child{border-bottom:none}
+.exo-stat-name{font-size:15px}
+.exo-stat-right{text-align:right}
+.exo-stat-reps{font-size:15px;font-weight:500;font-family:'DM Mono',monospace}
+.exo-stat-pts{font-size:12px;color:var(--muted)}
+.chart-container{position:relative;height:180px;margin:16px 0}
+.section-title{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+
+/* EXO DETAIL */
+.pr-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(200,241,53,0.12);border:1px solid rgba(200,241,53,0.3);border-radius:8px;padding:6px 12px;font-size:14px;color:var(--accent);margin-bottom:20px}
+.pr-value{font-family:'DM Mono',monospace;font-weight:500;font-size:18px}
+
+/* HISTORY */
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.hist-item:last-child{border-bottom:none}
+.hist-date{color:var(--muted)}
+.hist-reps{font-family:'DM Mono',monospace;font-weight:500}
+
+/* DÉFIS */
+.defi-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.defi-title{font-size:16px;font-weight:500;margin-bottom:4px}
+.defi-meta{font-size:13px;color:var(--muted);margin-bottom:14px}
+.defi-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.defi-row:last-child{margin-bottom:0}
+.defi-user{font-size:14px;flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.defi-bar-wrap{flex:1;background:var(--bg3);border-radius:4px;height:6px;overflow:hidden}
+.defi-bar-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .4s}
+.defi-score{font-size:13px;font-family:'DM Mono',monospace;color:var(--muted);flex-shrink:0;width:50px;text-align:right}
+.create-defi-form{display:none}
+.create-defi-form.open{display:block}
+.form-label{font-size:13px;color:var(--muted);margin-bottom:6px;display:block}
+.form-row{margin-bottom:14px}
+.select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;appearance:none}
+
+/* AMIS */
+.ami-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.ami-row:last-child{border-bottom:none}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:var(--accent);flex-shrink:0;font-family:'DM Mono',monospace}
+.ami-info{flex:1}
+.ami-name{font-size:15px;font-weight:500}
+.ami-pts{font-size:13px;color:var(--muted);margin-top:2px}
+.ami-rank{font-size:20px;font-family:'DM Mono',monospace;font-weight:600;color:var(--muted)}
+.ami-rank.top{color:var(--accent)}
+.share-box{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;display:flex;align-items:center;gap:10px}
+.share-url{flex:1;font-size:13px;color:var(--muted);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+
+/* ADMIN */
+.admin-banner{background:rgba(200,241,53,0.08);border:1px solid rgba(200,241,53,0.2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:var(--accent);display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.proposal-card{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px}
+.proposal-exo{font-size:15px;font-weight:500;margin-bottom:4px}
+.proposal-change{font-size:13px;color:var(--muted);margin-bottom:8px}
+.proposal-msg{font-size:13px;color:var(--text);background:var(--bg2);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.4}
+.proposal-by{font-size:12px;color:var(--muted);margin-bottom:10px}
+.proposal-actions{display:flex;gap:8px}
+.proposal-actions button{flex:1;padding:8px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-accept{background:rgba(200,241,53,0.2);color:var(--accent)}
+.btn-reject{background:rgba(255,85,85,0.15);color:var(--red)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;z-index:100}
+.modal-overlay.hidden{display:none}
+.modal-sheet{background:var(--bg2);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:430px;margin:0 auto}
+.modal-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.modal-sub{font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.4}
+.pts-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:18px;color:var(--accent);font-family:'DM Mono',monospace;outline:none;text-align:center}
+.pts-input:focus{border-color:var(--accent)}
+.textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:80px;line-height:1.4}
+.textarea:focus{border-color:var(--accent)}
+
+.empty-state{text-align:center;padding:40px 24px;color:var(--muted);font-size:15px;line-height:1.6}
+.zoom-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 11px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.zoom-btn.active{background:rgba(200,241,53,0.15);border-color:rgba(200,241,53,0.4);color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- LOADING -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Connexion…</div>
+</div>
+
+<!-- NOTIF -->
+<div id="notif-banner" class="notif-banner hidden">
+  <span id="notif-text"></span>
+  <button class="notif-close" onclick="dismissNotif()">×</button>
+</div>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen hidden">
+  <div class="login-wrap">
+    <div class="login-logo">REP/</div>
+    <div class="login-tagline">Tracker tes reps.<br>2 clics. Pas de bullshit.</div>
+    <div id="signup-field" style="margin-bottom:12px;display:none">
+      <input class="input" type="text" id="login-pseudo" placeholder="Ton pseudo" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+    </div>
+    <div style="margin-bottom:12px">
+      <input class="input" type="email" id="login-email" placeholder="Email" autocomplete="email"/>
+    </div>
+    <div style="margin-bottom:20px">
+      <input class="input" type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password"/>
+    </div>
+    <div id="login-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
+    <button class="btn btn-primary" id="login-submit-btn" style="margin-bottom:10px" onclick="doLogin()">Se connecter →</button>
+    <button class="btn btn-ghost" id="login-toggle-btn" onclick="toggleSignup()">Créer un compte</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="screen-main" class="screen hidden">
+  <div class="header">
+    <div>
+      <div class="header-title" id="main-greeting">Salut !</div>
+      <div class="header-sub" id="main-subtitle">Qu'est-ce qu'on fait ?</div>
+    </div>
+    <button class="icon-btn" onclick="doLogout()">↩</button>
+  </div>
+  <div class="scroll">
+
+    <div id="tab-log" class="tab active">
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="exo-search" type="search" placeholder="Chercher un exercice…" oninput="renderExoList()" autocomplete="off"/>
+      </div>
+      <div id="exo-list"></div>
+    </div>
+
+    <div id="tab-perfs" class="tab">
+      <div class="card">
+        <div class="week-header">
+          <div><div class="week-pts" id="week-total-pts">0 pts</div><div class="week-label">cette semaine</div></div>
+          <div style="text-align:right">
+            <div style="font-size:13px;color:var(--muted)">objectif</div>
+            <div style="font-size:18px;font-weight:500;font-family:'DM Mono',monospace" id="week-goal-display">500 pts</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill" id="week-progress-bar" style="width:0%"></div></div>
+          <div class="progress-labels"><span id="week-pct">0%</span><span>semaine en cours</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="section-title" id="chart-title" style="margin:0">Points par jour</div>
+          <div style="display:flex;gap:4px">
+            <button class="zoom-btn active" id="zoom-week" onclick="setChartZoom('week')">7j</button>
+            <button class="zoom-btn" id="zoom-month" onclick="setChartZoom('month')">Mois</button>
+            <button class="zoom-btn" id="zoom-year" onclick="setChartZoom('year')">An</button>
+            <button class="zoom-btn" id="zoom-all" onclick="setChartZoom('all')">Tout</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-weekly"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Par exercice cette semaine <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:12px">(tap → progression)</span></div>
+        <div id="exo-stats-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-defis" class="tab">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:16px;font-weight:500">Défis actifs</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleCreateDefi()">+ Nouveau</button>
+        </div>
+        <div class="create-defi-form" id="create-defi-form">
+          <div class="form-row">
+            <label class="form-label">Type de défi</label>
+            <select class="select" id="defi-type" onchange="onDefiTypeChange()">
+              <option value="reps">Reps sur un exercice</option>
+              <option value="points">Points totaux</option>
+              <option value="multi">Reps sur plusieurs exercices</option>
+            </select>
+          </div>
+          <div class="form-row" id="defi-exo-row">
+            <label class="form-label">Exercice</label>
+            <select class="select" id="defi-exo"></select>
+          </div>
+          <div class="form-row" id="defi-multi-row" style="display:none">
+            <label class="form-label">Exercices (maintiens Cmd/Ctrl pour en sélectionner plusieurs)</label>
+            <select class="select" id="defi-multi-exos" multiple style="height:130px"></select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" id="defi-target-label">Objectif (reps sur la semaine)</label>
+            <input class="input" type="number" id="defi-target" placeholder="ex: 200" min="1"/>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" onclick="toggleCreateDefi()">Annuler</button>
+            <button class="btn btn-primary btn-sm" onclick="createDefi()" style="flex:1">Créer</button>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div id="defis-list"></div>
+    </div>
+
+    <div id="tab-amis" class="tab">
+      <div class="card"><div class="section-title">Classement cette semaine</div><div id="amis-list"></div></div>
+      <div class="card">
+        <div class="section-title">Inviter un ami</div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:12px;line-height:1.6">Partage ce lien. Ton ami crée son compte et apparaît dans le classement.</p>
+        <div class="share-box"><div class="share-url" id="share-url">repflow.vercel.app</div><button class="copy-btn" onclick="copyLink()">Copier</button></div>
+      </div>
+      <div id="admin-section" style="display:none">
+        <div class="admin-banner">⚡ Mode admin activé</div>
+        <div class="card"><div class="section-title">Propositions de pondération</div><div id="proposals-list"></div></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-log" onclick="switchTab('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Logger
+    </button>
+    <button class="nav-btn" id="nav-perfs" onclick="switchTab('perfs')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Perfs
+    </button>
+    <button class="nav-btn" id="nav-defis" onclick="switchTab('defis')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>Défis
+      <span class="nav-badge" id="badge-defis" style="display:none"></span>
+    </button>
+    <button class="nav-btn" id="nav-amis" onclick="switchTab('amis')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Amis
+      <span class="nav-badge" id="badge-admin" style="display:none"></span>
+    </button>
+  </div>
+</div>
+
+<!-- LOG -->
+<div id="screen-log" class="screen hidden">
+  <div class="header"><button class="back-btn" onclick="goBackFromLog()">← Retour</button></div>
+  <div class="scroll" style="padding-top:0">
+    <div class="log-exo-name" id="log-exo-name"></div>
+    <div class="log-exo-pts" id="log-exo-pts"></div>
+    <div class="last-log" id="last-log-info">Aucun log précédent</div>
+    <div class="reps-counter">
+      <button class="reps-btn" onclick="changeReps(-1)">−</button>
+      <div class="reps-val" id="reps-val">10</div>
+      <button class="reps-btn" onclick="changeReps(1)">+</button>
+    </div>
+    <button class="btn btn-primary" onclick="saveLog()" style="margin-bottom:12px">Valider ✓</button>
+    <button class="btn btn-ghost" onclick="goBackFromLog()">Annuler</button>
+    <div class="success-flash" id="success-flash"></div>
+    <div class="propose-link" onclick="openProposalModal()">Proposer un ajustement de pondération →</div>
+    <div style="margin-top:32px"><div class="section-title">Historique</div><div id="log-history"></div></div>
+  </div>
+</div>
+
+<!-- EXO DETAIL -->
+<div id="screen-exo-detail" class="screen hidden">
+  <div class="header"><button class="back-btn" onclick="showScreen('screen-main','screen-exo-detail')">← Retour</button></div>
+  <div class="scroll" style="padding-top:0">
+    <div class="log-exo-name" id="detail-exo-name"></div>
+    <div class="log-exo-pts" id="detail-exo-pts"></div>
+    <div class="pr-badge" id="detail-pr" style="display:none">🏆 Record : <span class="pr-value" id="detail-pr-val"></span></div>
+    <div class="card"><div class="section-title">Évolution (20 dernières sessions)</div><div class="chart-container"><canvas id="chart-detail"></canvas></div></div>
+    <div class="card"><div class="section-title">Historique complet</div><div id="detail-history"></div></div>
+  </div>
+</div>
+
+<!-- PROPOSAL MODAL -->
+<div class="modal-overlay hidden" id="proposal-modal" onclick="closeProposalModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">Proposer un ajustement</div>
+    <div class="modal-sub" id="proposal-modal-sub"></div>
+    <div class="form-row">
+      <label class="form-label">Nouvelle pondération</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <input class="pts-input" type="number" id="proposal-pts" step="0.5" min="0.1"/>
+        <span style="font-size:14px;color:var(--muted)">pts</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Message pour l'admin</label>
+      <textarea class="textarea" id="proposal-msg" placeholder="Explique pourquoi la pondération devrait changer…"></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="submitProposal()" style="margin-top:16px">Envoyer</button>
+    <div style="height:12px"></div>
+  </div>
+</div>
+
+<script>
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey: "AIzaSyAW0FGYYbwGox_c_t4_Ir7AstTLOALVLDw",
+  authDomain: "tracker-renfo.firebaseapp.com",
+  projectId: "tracker-renfo",
+  storageBucket: "tracker-renfo.firebasestorage.app",
+  messagingSenderId: "54398174452",
+  appId: "1:54398174452:web:d654fa02dba3dbd3abcaa1"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+db.enablePersistence().catch(() => {}); // offline support
+
+const col  = n    => db.collection(n);
+const docR = (n,i) => db.collection(n).doc(i);
+
+// ─── EXERCISES ────────────────────────────────────────────────────────────────
+const DEFAULT_EXO = [
+  {id:'squats',       name:'Squats',                   pts:1,   unit:'reps',cat:'Jambes'},
+  {id:'fentes',       name:'Fentes',                   pts:1,   unit:'reps',cat:'Jambes'},
+  {id:'glute-bridge', name:'Pont fessier',             pts:1,   unit:'reps',cat:'Jambes'},
+  {id:'step-ups',     name:'Step-ups',                 pts:1,   unit:'reps',cat:'Jambes'},
+  {id:'jump-squats',  name:'Squats sautés',            pts:2,   unit:'reps',cat:'Jambes'},
+  {id:'jump-lunges',  name:'Fentes sautées',           pts:2,   unit:'reps',cat:'Jambes'},
+  {id:'bulgarians',   name:'Fentes bulgares',          pts:2,   unit:'reps',cat:'Jambes'},
+  {id:'single-leg-dl',name:'Soulevé unipodal',         pts:2,   unit:'reps',cat:'Jambes'},
+  {id:'cossack',      name:'Cossack squats',           pts:3,   unit:'reps',cat:'Jambes'},
+  {id:'pistols',      name:'Pistol squats',            pts:5,   unit:'reps',cat:'Jambes'},
+  {id:'nordic',       name:'Nordic curls',             pts:8,   unit:'reps',cat:'Jambes'},
+  {id:'incline-pu',   name:'Pompes inclinées',         pts:0.5, unit:'reps',cat:'Pousser'},
+  {id:'pompes',       name:'Pompes',                   pts:1,   unit:'reps',cat:'Pousser'},
+  {id:'diamond-pu',   name:'Pompes diamant',           pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'decline-pu',   name:'Pompes déclinées',         pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'pike-pu',      name:'Pike push-ups',            pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'hindu-pu',     name:'Hindu push-ups',           pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'archer-pu',    name:'Archer push-ups',          pts:3,   unit:'reps',cat:'Pousser'},
+  {id:'bench-dips',   name:'Dips sur banc',            pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'dips',         name:'Dips',                     pts:4,   unit:'reps',cat:'Pousser'},
+  {id:'hspu',         name:'Pompes en équilibre (mur)',pts:8,   unit:'reps',cat:'Pousser'},
+  {id:'scap-pu',      name:'Scapular pull-ups',        pts:1,   unit:'reps',cat:'Tirer'},
+  {id:'inverted-rows',name:'Rowing australien',        pts:2,   unit:'reps',cat:'Tirer'},
+  {id:'chin-ups',     name:'Chin-ups',                 pts:2,   unit:'reps',cat:'Tirer'},
+  {id:'tractions',    name:'Tractions',                pts:3,   unit:'reps',cat:'Tirer'},
+  {id:'neutral-pu',   name:'Tractions prise neutre',   pts:3,   unit:'reps',cat:'Tirer'},
+  {id:'wide-pu',      name:'Tractions prise large',    pts:4,   unit:'reps',cat:'Tirer'},
+  {id:'toe-to-bar',   name:'Toes to bar',              pts:4,   unit:'reps',cat:'Tirer'},
+  {id:'archer-pull',  name:'Archer pull-ups',          pts:6,   unit:'reps',cat:'Tirer'},
+  {id:'muscle-up',    name:'Muscle-ups',               pts:40,  unit:'reps',cat:'Tirer'},
+  {id:'russian-twist',name:'Russian twists',           pts:1,   unit:'reps',cat:'Core'},
+  {id:'mountain',     name:'Mountain climbers',        pts:1,   unit:'reps',cat:'Core'},
+  {id:'knee-raises',  name:'Relevés de genoux',        pts:2,   unit:'reps',cat:'Core'},
+  {id:'leg-raises',   name:'Relevés de jambes',        pts:2,   unit:'reps',cat:'Core'},
+  {id:'v-ups',        name:'V-ups',                    pts:2,   unit:'reps',cat:'Core'},
+  {id:'ab-wheel',     name:'Roue abdominale',          pts:4,   unit:'reps',cat:'Core'},
+  {id:'dragon-flag',  name:'Dragon flag',              pts:6,   unit:'reps',cat:'Core'},
+  {id:'burpees',      name:'Burpees',                  pts:3,   unit:'reps',cat:'Full body'},
+  {id:'sprawls',      name:'Sprawls',                  pts:2,   unit:'reps',cat:'Full body'},
+  {id:'dead-hang',    name:'Dead hang',                pts:0.1, unit:'sec', cat:'Statique'},
+  {id:'gainage',      name:'Gainage',                  pts:0.25,unit:'sec', cat:'Statique'},
+  {id:'chaise',       name:'Chaise',                   pts:0.5, unit:'sec', cat:'Statique'},
+  {id:'hs-hold',      name:'Équilibre mural',          pts:0.3, unit:'sec', cat:'Statique'},
+  {id:'l-sit',        name:'L-sit',                    pts:1,   unit:'sec', cat:'Statique'},
+  {id:'fl-tuck',      name:'Front lever (tuck)',       pts:1.5, unit:'sec', cat:'Statique'},
+  {id:'back-lever',   name:'Back lever',               pts:2,   unit:'sec', cat:'Statique'},
+  {id:'front-lever',  name:'Front lever',              pts:4,   unit:'sec', cat:'Statique'},
+  {id:'planche-tuck', name:'Planche (tuck)',           pts:2,   unit:'sec', cat:'Statique'},
+  {id:'planche',      name:'Planche',                  pts:5,   unit:'sec', cat:'Statique'},
+  {id:'human-flag',   name:'Human flag',               pts:3,   unit:'sec', cat:'Statique'},
+];
+const WEEKLY_GOAL = 500;
+let EXERCISES = DEFAULT_EXO.map(e=>({...e}));
+
+// ─── CACHE (mémoire locale, rafraîchi depuis Firestore) ───────────────────────
+let cache = { myLogs:[], weekLogs:[], favorites:[], adminUser:null };
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentUser = null, currentExo = null, currentReps = 10;
+let weeklyChart = null, detailChart = null;
+let chartZoom = 'week';
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function getWeekKey(ts) {
+  const d = new Date(ts); const day = d.getDay()||7;
+  d.setDate(d.getDate()-day+1); return d.toISOString().slice(0,10);
+}
+function getThisWeekKey() { return getWeekKey(Date.now()); }
+function cap(s) { return s ? s[0].toUpperCase()+s.slice(1) : ''; }
+function fmtPts(p) { return Number.isInteger(p)?p:(p===Math.round(p*10)/10?p.toFixed(1):p.toFixed(2)); }
+function calcPts(logs) {
+  return Math.round(logs.reduce((s,l)=>{
+    const e=EXERCISES.find(x=>x.id===l.exoId); return s+(e?l.reps*e.pts:0);
+  },0));
+}
+function formatDate(d, short) {
+  if (short) return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+  const diff = Date.now()-d;
+  if (diff<60000) return 'à l\'instant';
+  if (diff<3600000) return Math.floor(diff/60000)+' min';
+  if (diff<86400000) return Math.floor(diff/3600000)+'h';
+  if (diff<172800000) return 'hier';
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+}
+function showLoading(on, txt='Chargement…') {
+  document.getElementById('loading').classList.toggle('hidden',!on);
+  document.getElementById('loading-text').textContent=txt;
+}
+function isAdmin() { return currentUser && currentUser === cache.adminUser; }
+
+// ─── SCREENS ──────────────────────────────────────────────────────────────────
+function showScreen(show, hide) {
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.add('hidden');s.classList.remove('slide-left');});
+  if (hide==='screen-main') {
+    document.getElementById('screen-main').classList.remove('hidden');
+    document.getElementById('screen-main').classList.add('slide-left');
+  }
+  document.getElementById(show).classList.remove('hidden','slide-left');
+}
+
+// ─── FIRESTORE HELPERS ────────────────────────────────────────────────────────
+async function fsEnsureUser(username) {
+  const ref = docR('users', username);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({ username, createdAt: Date.now() });
+    const adminSnap = await docR('config','admin').get();
+    if (!adminSnap.exists) await docR('config','admin').set({ username });
+  }
+}
+async function fsGetAdmin() {
+  const snap = await docR('config','admin').get();
+  return snap.exists ? snap.data().username : null;
+}
+async function fsGetMyLogs(username) {
+  const snap = await col('logs').where('username','==',username).get();
+  return snap.docs.map(d=>d.data()).sort((a,b)=>a.ts-b.ts);
+}
+async function fsGetWeekLogs(weekKey) {
+  const snap = await col('logs').where('weekKey','==',weekKey).get();
+  return snap.docs.map(d=>d.data());
+}
+async function fsAddLog(username, exoId, reps, ts) {
+  await col('logs').add({ username, exoId, reps, ts, weekKey: getWeekKey(ts) });
+}
+async function fsGetFavs(username) {
+  const snap = await docR('favorites',username).get();
+  return snap.exists ? (snap.data().exoIds||[]) : [];
+}
+async function fsSaveFavs(username, exoIds) {
+  await docR('favorites',username).set({ exoIds });
+}
+async function fsGetPtsOverrides() {
+  const snap = await col('ptsOverrides').get();
+  const r={}; snap.docs.forEach(d=>r[d.id]=d.data().pts); return r;
+}
+async function fsSetPtsOverride(exoId, pts) {
+  await docR('ptsOverrides',exoId).set({ pts });
+}
+async function fsApplyOverrides() {
+  const ov = await fsGetPtsOverrides();
+  EXERCISES = DEFAULT_EXO.map(e=>({...e, pts: ov[e.id]!==undefined ? ov[e.id] : e.pts}));
+}
+async function fsGetProposals() {
+  const snap = await col('proposals').orderBy('ts','desc').get();
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function fsAddProposal(data) { await col('proposals').add(data); }
+async function fsUpdateProposal(id, updates) { await docR('proposals',id).update(updates); }
+async function fsGetDefis() {
+  const snap = await col('defis').get();
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function fsAddDefi(data) { await col('defis').add(data); }
+async function fsUpdateDefi(id, updates) { await docR('defis',id).update(updates); }
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+let isSignupMode = false;
+function toggleSignup() {
+  isSignupMode = !isSignupMode;
+  document.getElementById('signup-field').style.display = isSignupMode ? '' : 'none';
+  document.getElementById('login-password').setAttribute('autocomplete', isSignupMode ? 'new-password' : 'current-password');
+  document.getElementById('login-submit-btn').textContent = isSignupMode ? 'Créer mon compte →' : 'Se connecter →';
+  document.getElementById('login-toggle-btn').textContent = isSignupMode ? "J'ai déjà un compte" : 'Créer un compte';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const pseudo   = document.getElementById('login-pseudo').value.trim().toLowerCase();
+  const errEl    = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!email || !password) return;
+  if (isSignupMode && !pseudo) { errEl.textContent = 'Entre ton pseudo'; errEl.style.display = ''; return; }
+  showLoading(true, isSignupMode ? 'Création du compte…' : 'Connexion…');
+  try {
+    if (isSignupMode) {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: pseudo });
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+    // onAuthStateChanged prend le relais
+  } catch(e) {
+    showLoading(false);
+    const msgs = {
+      'auth/user-not-found':     'Aucun compte avec cet email',
+      'auth/wrong-password':     'Mot de passe incorrect',
+      'auth/invalid-credential': 'Email ou mot de passe incorrect',
+      'auth/email-already-in-use':'Cet email est déjà utilisé',
+      'auth/weak-password':      'Mot de passe trop court (6 caractères min)',
+      'auth/invalid-email':      'Email invalide',
+    };
+    errEl.textContent = msgs[e.code] || 'Erreur : ' + e.message;
+    errEl.style.display = '';
+  }
+}
+
+async function doLogout() {
+  currentUser = null;
+  await auth.signOut();
+}
+function showMain() {
+  document.getElementById('main-greeting').textContent = 'Salut '+cap(currentUser)+' !';
+  renderExoList();
+  switchTab('log');
+  showScreen('screen-main','screen-login');
+  updateBadges();
+  checkNotifications();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('nav-'+tab).classList.add('active');
+  if (tab==='perfs')  renderStats();
+  if (tab==='defis')  renderDefis();
+  if (tab==='amis')   renderAmis();
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+function checkNotifications() {
+  if (!cache.myLogs.length) return;
+  const lastTs = Math.max(...cache.myLogs.map(l=>l.ts));
+  const hours  = (Date.now()-lastTs)/3600000;
+  if (hours>48) showNotif(`⚡ Ça fait ${Math.floor(hours/24)} jours sans log !`,'warn');
+  else {
+    const pts = calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===getThisWeekKey()));
+    if (pts>=WEEKLY_GOAL) showNotif(`🎯 Objectif hebdo atteint ! ${pts} pts cette semaine.`,'info');
+  }
+}
+function showNotif(text,type) {
+  const b=document.getElementById('notif-banner');
+  document.getElementById('notif-text').textContent=text;
+  b.className='notif-banner '+type;
+}
+function dismissNotif() { document.getElementById('notif-banner').className='notif-banner hidden'; }
+
+function updateBadges() {
+  if (isAdmin()) {
+    col('proposals').where('status','==','pending').get().then(s=>{
+      const b=document.getElementById('badge-admin');
+      if (s.size>0){b.textContent=s.size;b.style.display='';}else b.style.display='none';
+    });
+  }
+}
+
+// ─── LOGGER ───────────────────────────────────────────────────────────────────
+function renderExoList() {
+  const weekKey  = getThisWeekKey();
+  const weekLogs = cache.myLogs.filter(l=>getWeekKey(l.ts)===weekKey);
+  const search   = (document.getElementById('exo-search')?.value||'').toLowerCase().trim();
+  const favs     = cache.favorites;
+  const el       = document.getElementById('exo-list');
+  el.innerHTML   = '';
+
+  const cats={};
+  EXERCISES.forEach(exo=>{
+    if (search && !exo.name.toLowerCase().includes(search)) return;
+    if (!cats[exo.cat]) cats[exo.cat]=[];
+    cats[exo.cat].push(exo);
+  });
+  if (!Object.keys(cats).length){el.innerHTML='<div class="empty-state">Aucun exercice trouvé</div>';return;}
+
+  if (!search && favs.length) {
+    const fe=EXERCISES.filter(e=>favs.includes(e.id));
+    if (fe.length){addCatHeader(el,'★ Favoris');fe.forEach(exo=>addExoBtn(exo,weekLogs,favs,el));}
+  }
+  Object.entries(cats).forEach(([cat,exos])=>{
+    addCatHeader(el,cat); exos.forEach(exo=>addExoBtn(exo,weekLogs,favs,el));
+  });
+}
+function addCatHeader(el,text){const h=document.createElement('div');h.className='cat-header';h.textContent=text;el.appendChild(h);}
+function addExoBtn(exo,weekLogs,favs,el){
+  const exoLogs  =weekLogs.filter(l=>l.exoId===exo.id);
+  const totalReps=exoLogs.reduce((s,l)=>s+l.reps,0);
+  const totalPts =Math.round(exoLogs.reduce((s,l)=>s+l.reps*exo.pts,0));
+  const ul       =exo.unit==='sec'?'s':'reps';
+  const isFav    =favs.includes(exo.id);
+  const weekLabel=totalReps>0?`${totalReps}${ul} · ${totalPts} pts`:'pas encore logué';
+  const btn=document.createElement('div');btn.className='exo-btn';
+  btn.innerHTML=`<div class="exo-left"><div class="exo-name">${exo.name}</div><div class="exo-pts-label">${fmtPts(exo.pts)} pt/${exo.unit==='sec'?'sec':'rep'} · ${weekLabel}</div></div><button class="fav-btn${isFav?' fav-active':''}" onclick="toggleFav('${exo.id}',event)">★</button><div class="exo-arrow">›</div>`;
+  btn.onclick=()=>openLog(exo); el.appendChild(btn);
+}
+
+async function toggleFav(id,e) {
+  e.stopPropagation();
+  const favs=cache.favorites; const idx=favs.indexOf(id);
+  if (idx>=0) favs.splice(idx,1); else favs.push(id);
+  cache.favorites=[...favs];
+  renderExoList();
+  await fsSaveFavs(currentUser,cache.favorites);
+}
+
+function openLog(exo) {
+  currentExo=exo;
+  const logs=cache.myLogs.filter(l=>l.exoId===exo.id).sort((a,b)=>b.ts-a.ts);
+  const last=logs[0];
+  document.getElementById('log-exo-name').textContent=exo.name;
+  document.getElementById('log-exo-pts').textContent=fmtPts(exo.pts)+' pt / '+(exo.unit==='sec'?'seconde':'rep');
+  document.getElementById('success-flash').style.display='none';
+  if (last){
+    document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${last.reps} ${exo.unit==='sec'?'sec':'reps'}</strong> — ${formatDate(new Date(last.ts))}`;
+    currentReps=last.reps;
+  } else {
+    document.getElementById('last-log-info').textContent='Premier log pour cet exercice';
+    currentReps=exo.unit==='sec'?30:10;
+  }
+  document.getElementById('reps-val').textContent=currentReps;
+  renderLogHistory(exo,logs);
+  showScreen('screen-log','screen-main');
+}
+function renderLogHistory(exo,logs){
+  const el=document.getElementById('log-history'); el.innerHTML='';
+  if (!logs.length){el.innerHTML='<div class="empty-state" style="padding:20px 0">Aucun log encore</div>';return;}
+  logs.slice(0,15).forEach(l=>{
+    const d=document.createElement('div');d.className='hist-item';
+    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${l.reps} ${exo.unit==='sec'?'sec':'reps'} · ${Math.round(l.reps*exo.pts)} pts</span>`;
+    el.appendChild(d);
+  });
+}
+function changeReps(delta){currentReps=Math.max(1,currentReps+delta);document.getElementById('reps-val').textContent=currentReps;}
+
+async function saveLog() {
+  const ts=Date.now();
+  const entry={username:currentUser,exoId:currentExo.id,reps:currentReps,ts,weekKey:getWeekKey(ts)};
+  // Optimistic update
+  cache.myLogs.push(entry);
+  if (getWeekKey(ts)===getThisWeekKey()) cache.weekLogs.push(entry);
+  const pts=Math.round(currentReps*currentExo.pts);
+  const flash=document.getElementById('success-flash');
+  flash.textContent=`✓ +${pts} pts — bien joué !`; flash.style.display='block';
+  setTimeout(()=>flash.style.display='none',2000);
+  document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${currentReps} ${currentExo.unit==='sec'?'sec':'reps'}</strong> — à l'instant`;
+  renderLogHistory(currentExo, cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts));
+  // Write to Firestore in background
+  await fsAddLog(currentUser,currentExo.id,currentReps,ts);
+}
+function goBackFromLog(){showScreen('screen-main','screen-log');}
+
+// ─── PERFS / STATS ────────────────────────────────────────────────────────────
+function renderStats() {
+  const weekLogs=cache.myLogs.filter(l=>getWeekKey(l.ts)===getThisWeekKey());
+  const totalPts=calcPts(weekLogs);
+  document.getElementById('week-total-pts').textContent=totalPts+' pts';
+  const pct=Math.min(100,Math.round(totalPts/WEEKLY_GOAL*100));
+  document.getElementById('week-progress-bar').style.width=pct+'%';
+  document.getElementById('week-pct').textContent=pct+'%';
+  const byExo={};
+  weekLogs.forEach(l=>{byExo[l.exoId]=(byExo[l.exoId]||0)+l.reps;});
+  const sorted=Object.entries(byExo).sort((a,b)=>{
+    const pa=(EXERCISES.find(e=>e.id===a[0])||{pts:1}).pts*a[1];
+    const pb=(EXERCISES.find(e=>e.id===b[0])||{pts:1}).pts*b[1];
+    return pb-pa;
+  });
+  const listEl=document.getElementById('exo-stats-list'); listEl.innerHTML='';
+  if (!sorted.length){listEl.innerHTML='<div class="empty-state" style="padding:20px 0">Rien encore cette semaine.</div>';}
+  else sorted.forEach(([id,reps])=>{
+    const exo=EXERCISES.find(e=>e.id===id); if (!exo) return;
+    const d=document.createElement('div');d.className='exo-stat';
+    d.innerHTML=`<div class="exo-stat-name">${exo.name}</div><div class="exo-stat-right"><div class="exo-stat-reps">${reps} ${exo.unit==='sec'?'sec':'reps'}</div><div class="exo-stat-pts">${Math.round(reps*exo.pts)} pts</div></div>`;
+    d.onclick=()=>openExoDetail(exo); listEl.appendChild(d);
+  });
+  renderChart();
+}
+function getDayKey(ts){const d=new Date(ts);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function setChartZoom(zoom){
+  chartZoom=zoom;
+  document.querySelectorAll('.zoom-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('zoom-'+zoom).classList.add('active');
+  renderChart();
+}
+function renderChart(){
+  const now=Date.now();
+  const MONTHS=['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
+  const DAYS=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  let labels,values,currentIdx;
+  if (chartZoom==='week'){
+    const days=[]; for(let i=6;i>=0;i--) days.push(getDayKey(now-i*86400000));
+    labels=days.map((dk,i)=>{if(i===6)return'Auj.';const d=new Date(dk);return DAYS[d.getDay()]+' '+d.getDate();});
+    values=days.map(dk=>calcPts(cache.myLogs.filter(l=>getDayKey(l.ts)===dk)));
+    currentIdx=6;
+    document.getElementById('chart-title').textContent='Points par jour (7 derniers jours)';
+  } else if (chartZoom==='month'){
+    const weeks=[]; for(let i=7;i>=0;i--) weeks.push(getWeekKey(now-i*7*86400000));
+    labels=weeks.map((wk,i)=>{if(i===weeks.length-1)return'cette sem.';const d=new Date(wk);return d.getDate()+' '+MONTHS[d.getMonth()];});
+    values=weeks.map(wk=>calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===wk)));
+    currentIdx=weeks.length-1;
+    document.getElementById('chart-title').textContent='Points par semaine (2 derniers mois)';
+  } else if (chartZoom==='year'){
+    const months=[]; for(let i=11;i>=0;i--){const d=new Date(now);d.setDate(1);d.setMonth(d.getMonth()-i);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);}
+    labels=months.map((mk,i)=>{const[y,m]=mk.split('-');return MONTHS[parseInt(m)-1]+(i===0||parseInt(m)===1?' '+y:'');});
+    values=months.map(mk=>calcPts(cache.myLogs.filter(l=>new Date(l.ts).getFullYear()+'-'+String(new Date(l.ts).getMonth()+1).padStart(2,'0')===mk)));
+    currentIdx=months.length-1;
+    document.getElementById('chart-title').textContent='Points par mois (12 derniers mois)';
+  } else {
+    const allTs=cache.myLogs.map(l=>l.ts);
+    const minY=allTs.length?new Date(Math.min(...allTs)).getFullYear():new Date().getFullYear();
+    const maxY=new Date().getFullYear();
+    const years=[]; for(let y=minY;y<=maxY;y++) years.push(String(y));
+    labels=years;
+    values=years.map(y=>calcPts(cache.myLogs.filter(l=>String(new Date(l.ts).getFullYear())===y)));
+    currentIdx=years.length-1;
+    document.getElementById('chart-title').textContent='Points par année (all time)';
+  }
+  const colors=values.map((_,i)=>i===currentIdx?'#c8f135':'rgba(200,241,53,0.25)');
+  const ctx=document.getElementById('chart-weekly').getContext('2d');
+  if (weeklyChart) weeklyChart.destroy();
+  weeklyChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pts'}}},scales:{x:{grid:{display:false},ticks:{color:'#888',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11}}}}}});
+}
+
+// ─── EXO DETAIL ───────────────────────────────────────────────────────────────
+function openExoDetail(exo){
+  const logs=cache.myLogs.filter(l=>l.exoId===exo.id).sort((a,b)=>a.ts-b.ts);
+  document.getElementById('detail-exo-name').textContent=exo.name;
+  document.getElementById('detail-exo-pts').textContent=fmtPts(exo.pts)+' pt / '+(exo.unit==='sec'?'seconde':'rep');
+  if (logs.length){
+    const pr=Math.max(...logs.map(l=>l.reps));
+    document.getElementById('detail-pr').style.display='';
+    document.getElementById('detail-pr-val').textContent=pr+' '+(exo.unit==='sec'?'sec':'reps');
+  } else document.getElementById('detail-pr').style.display='none';
+  const recent=logs.slice(-20);
+  const ctx=document.getElementById('chart-detail').getContext('2d');
+  if (detailChart) detailChart.destroy();
+  detailChart=new Chart(ctx,{type:'line',data:{labels:recent.map(l=>formatDate(new Date(l.ts),true)),datasets:[{data:recent.map(l=>l.reps),borderColor:'#c8f135',backgroundColor:'rgba(200,241,53,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#c8f135',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' '+(exo.unit==='sec'?'sec':'reps')}}},scales:{x:{grid:{display:false},ticks:{color:'#888',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11}},beginAtZero:true}}}});
+  const histEl=document.getElementById('detail-history'); histEl.innerHTML='';
+  if (!logs.length){histEl.innerHTML='<div class="empty-state" style="padding:20px 0">Aucun log encore</div>';}
+  else [...logs].reverse().forEach(l=>{
+    const d=document.createElement('div');d.className='hist-item';
+    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${l.reps} ${exo.unit==='sec'?'sec':'reps'} · ${Math.round(l.reps*exo.pts)} pts</span>`;
+    histEl.appendChild(d);
+  });
+  showScreen('screen-exo-detail','screen-main');
+}
+
+// ─── DÉFIS ────────────────────────────────────────────────────────────────────
+function toggleCreateDefi(){
+  const f=document.getElementById('create-defi-form'); f.classList.toggle('open');
+  if (f.classList.contains('open')){
+    const opts=EXERCISES.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+    document.getElementById('defi-exo').innerHTML=opts;
+    document.getElementById('defi-multi-exos').innerHTML=opts;
+    document.getElementById('defi-type').value='reps';
+    onDefiTypeChange();
+  }
+}
+function onDefiTypeChange(){
+  const type=document.getElementById('defi-type').value;
+  document.getElementById('defi-exo-row').style.display=type==='reps'?'':'none';
+  document.getElementById('defi-multi-row').style.display=type==='multi'?'':'none';
+  const labels={reps:'Objectif (reps sur la semaine)',points:'Objectif en points sur la semaine',multi:'Objectif combiné (reps total)'};
+  document.getElementById('defi-target-label').textContent=labels[type];
+}
+async function createDefi(){
+  const type=document.getElementById('defi-type').value;
+  const target=parseInt(document.getElementById('defi-target').value);
+  if (!target||target<1) return;
+  const end=new Date(); end.setDate(end.getDate()+(7-(end.getDay()||7))); end.setHours(23,59,59,999);
+  const base={type,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true};
+  if (type==='reps'){
+    const exoId=document.getElementById('defi-exo').value;
+    const exo=EXERCISES.find(e=>e.id===exoId); if (!exo) return;
+    await fsAddDefi({...base,exoId,title:exo.name,unit:exo.unit});
+  } else if (type==='points'){
+    await fsAddDefi({...base,title:'Points totaux'});
+  } else if (type==='multi'){
+    const sel=document.getElementById('defi-multi-exos');
+    const exoIds=Array.from(sel.selectedOptions).map(o=>o.value);
+    if (!exoIds.length) return;
+    const names=exoIds.map(id=>EXERCISES.find(e=>e.id===id)?.name).filter(Boolean);
+    await fsAddDefi({...base,exoIds,title:names.join(' + ')});
+  }
+  toggleCreateDefi(); document.getElementById('defi-target').value='';
+  renderDefis(); updateBadges();
+}
+async function renderDefis(){
+  const el=document.getElementById('defis-list'); el.innerHTML='';
+  const defis=await fsGetDefis();
+  const active=defis.filter(d=>d.active&&Date.now()<=d.endTs);
+  defis.filter(d=>d.active&&Date.now()>d.endTs).forEach(d=>fsUpdateDefi(d.id,{active:false}));
+  if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';return;}
+  active.forEach(defi=>{
+    const type=defi.type||'reps';
+    const byUser={};
+    if (type==='reps'){
+      cache.weekLogs.filter(l=>l.exoId===defi.exoId&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+    } else if (type==='points'){
+      cache.weekLogs.filter(l=>l.ts>=defi.startTs).forEach(l=>{
+        const exo=EXERCISES.find(e=>e.id===l.exoId);
+        byUser[l.username]=(byUser[l.username]||0)+(exo?Math.round(l.reps*exo.pts):0);
+      });
+    } else if (type==='multi'){
+      cache.weekLogs.filter(l=>(defi.exoIds||[]).includes(l.exoId)&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+    }
+    const rankings=Object.entries(byUser).map(([n,t])=>({name:n,total:t})).sort((a,b)=>b.total-a.total);
+    if (!rankings.find(r=>r.name===currentUser)) rankings.push({name:currentUser,total:0});
+    const maxTotal=Math.max(...rankings.map(r=>r.total),defi.target);
+    const daysLeft=Math.max(0,Math.ceil((defi.endTs-Date.now())/86400000));
+    const myTotal=(rankings.find(r=>r.name===currentUser)||{total:0}).total;
+    const targetPct=Math.min(100,Math.round(myTotal/defi.target*100));
+    const unit=type==='points'?'pts':type==='multi'?'reps':(defi.unit==='sec'?'sec':'reps');
+    const card=document.createElement('div');card.className='defi-card';
+    card.innerHTML=`<div class="defi-title">${defi.title}</div><div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
+      rankings.map(r=>{const pct=Math.min(100,Math.round(r.total/maxTotal*100));const isMe=r.name===currentUser;return`<div class="defi-row"><div class="defi-user" style="${isMe?'color:var(--accent)':''}">${cap(r.name)}</div><div class="defi-bar-wrap"><div class="defi-bar-fill" style="width:${pct}%"></div></div><div class="defi-score">${r.total} ${unit}</div></div>`;}).join('');
+    el.appendChild(card);
+  });
+}
+
+// ─── AMIS ─────────────────────────────────────────────────────────────────────
+async function renderAmis(){
+  const el=document.getElementById('amis-list'); el.innerHTML='';
+  // Group weekLogs by user
+  const byUser={};
+  cache.weekLogs.forEach(l=>{byUser[l.username]=(byUser[l.username]||{exoId:l.exoId,logs:[]}); if(!byUser[l.username].logs)byUser[l.username].logs=[]; byUser[l.username].logs.push(l);});
+  // Simpler: just sum pts per user
+  const userPts={};
+  cache.weekLogs.forEach(l=>{
+    const exo=EXERCISES.find(e=>e.id===l.exoId);
+    userPts[l.username]=(userPts[l.username]||0)+(exo?l.reps*exo.pts:0);
+  });
+  if (!userPts[currentUser]) userPts[currentUser]=0;
+  const rankings=Object.entries(userPts).map(([n,p])=>({name:n,pts:Math.round(p)})).sort((a,b)=>b.pts-a.pts);
+  if (!rankings.length){el.innerHTML='<div class="empty-state">Personne encore.<br>Invite tes amis !</div>';}
+  else rankings.forEach((u,i)=>{
+    const isMe=u.name===currentUser;
+    const d=document.createElement('div');d.className='ami-row';
+    d.innerHTML=`<div class="avatar">${cap(u.name)[0]}</div><div class="ami-info"><div class="ami-name">${cap(u.name)}${isMe?' (toi)':''}</div><div class="ami-pts">${u.pts} pts cette semaine</div></div><div class="ami-rank ${i===0?'top':''}">${i+1}</div>`;
+    el.appendChild(d);
+  });
+  document.getElementById('share-url').textContent=window.location.href.split('?')[0];
+  const adminSec=document.getElementById('admin-section');
+  if (isAdmin()){adminSec.style.display='';renderAdminProposals();}
+  else adminSec.style.display='none';
+}
+
+// ─── PROPOSALS ────────────────────────────────────────────────────────────────
+function openProposalModal(){
+  if (!currentExo) return;
+  document.getElementById('proposal-modal-sub').textContent=`${currentExo.name} — pondération actuelle : ${fmtPts(currentExo.pts)} pt/${currentExo.unit==='sec'?'sec':'rep'}`;
+  document.getElementById('proposal-pts').value=currentExo.pts;
+  document.getElementById('proposal-msg').value='';
+  document.getElementById('proposal-modal').classList.remove('hidden');
+}
+function closeProposalModal(e){if(e&&e.target!==document.getElementById('proposal-modal'))return;document.getElementById('proposal-modal').classList.add('hidden');}
+async function submitProposal(){
+  const pts=parseFloat(document.getElementById('proposal-pts').value);
+  const msg=document.getElementById('proposal-msg').value.trim();
+  if (!pts||pts<=0||!msg){alert('Remplis les deux champs.');return;}
+  await fsAddProposal({exoId:currentExo.id,exoName:currentExo.name,currentPts:currentExo.pts,proposedPts:pts,message:msg,proposedBy:currentUser,status:'pending',ts:Date.now()});
+  document.getElementById('proposal-modal').classList.add('hidden');
+  updateBadges();
+  const flash=document.getElementById('success-flash');
+  flash.textContent='✓ Proposition envoyée à l\'admin'; flash.style.display='block';
+  setTimeout(()=>flash.style.display='none',2500);
+}
+async function renderAdminProposals(){
+  const proposals=await fsGetProposals();
+  const pending=proposals.filter(p=>p.status==='pending');
+  const el=document.getElementById('proposals-list'); el.innerHTML='';
+  if (!pending.length){el.innerHTML='<div class="empty-state" style="padding:16px 0">Aucune proposition en attente</div>';return;}
+  pending.forEach(p=>{
+    const d=document.createElement('div');d.className='proposal-card';
+    d.innerHTML=`<div class="proposal-exo">${p.exoName}</div><div class="proposal-change">${fmtPts(p.currentPts)} → ${fmtPts(p.proposedPts)} pt/${EXERCISES.find(e=>e.id===p.exoId)?.unit==='sec'?'sec':'rep'}</div><div class="proposal-msg">${p.message}</div><div class="proposal-by">Par ${cap(p.proposedBy)} · ${formatDate(new Date(p.ts))}</div><div class="proposal-actions"><button class="btn-accept" onclick="respondProposal('${p.id}','approved')">✓ Accepter</button><button class="btn-reject" onclick="respondProposal('${p.id}','rejected')">✗ Refuser</button></div>`;
+    el.appendChild(d);
+  });
+}
+async function respondProposal(id, status){
+  await fsUpdateProposal(id,{status});
+  if (status==='approved'){
+    const snap=await docR('proposals',id).get();
+    const p=snap.data();
+    await fsSetPtsOverride(p.exoId,p.proposedPts);
+    await fsApplyOverrides();
+    renderExoList();
+  }
+  updateBadges(); renderAdminProposals();
+}
+
+// ─── MISC ─────────────────────────────────────────────────────────────────────
+function copyLink(){
+  navigator.clipboard.writeText(window.location.href.split('?')[0]).then(()=>{
+    const btn=document.querySelector('.copy-btn');btn.textContent='Copié !';setTimeout(()=>btn.textContent='Copier',2000);
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    showLoading(true,'Chargement…');
+    try {
+      currentUser = user.displayName || user.email.split('@')[0];
+      await fsEnsureUser(currentUser);
+      cache.adminUser = await fsGetAdmin();
+      cache.favorites = await fsGetFavs(currentUser);
+      cache.myLogs    = await fsGetMyLogs(currentUser);
+      cache.weekLogs  = await fsGetWeekLogs(getThisWeekKey());
+      await fsApplyOverrides();
+      showMain();
+    } catch(e) { console.error(e); showScreen('screen-login',null); }
+    finally { showLoading(false); }
+  } else {
+    showLoading(false);
+    // Reset formulaire
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-pseudo').value = '';
+    document.getElementById('login-error').style.display = 'none';
+    if (isSignupMode) toggleSignup();
+    showScreen('screen-login',null);
+  }
+});
+
+document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>
