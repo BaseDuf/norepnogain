@@ -198,6 +198,45 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .friend-actions{display:flex;gap:6px}
 .btn-danger{background:rgba(255,85,85,0.15);color:var(--red);border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
 .btn-accept-sm{background:rgba(200,241,53,0.15);color:var(--accent);border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* LIGHT MODE */
+body.light {
+  --bg:#f0f0f0; --bg2:#ffffff; --bg3:#e5e5e5;
+  --border:rgba(0,0,0,0.1);
+  --text:#111; --muted:#555;
+}
+
+/* SETTINGS */
+.settings-section{margin-bottom:24px}
+.settings-section-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-bottom:12px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-label{font-size:15px}
+.settings-input-row{margin-bottom:10px;display:flex;gap:8px}
+.settings-input-row .input{flex:1}
+.toggle-btn{width:48px;height:28px;border-radius:14px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-btn::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.toggle-btn.on{background:rgba(200,241,53,0.3);border-color:var(--accent)}
+.toggle-btn.on::after{transform:translateX(20px);background:var(--accent)}
+
+/* HIST ACTIONS */
+.hist-actions{display:flex;gap:6px;margin-left:8px}
+.hist-icon-btn{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1;transition:color .15s}
+.hist-icon-btn:hover{color:var(--text)}
+.hist-icon-btn.del:hover{color:var(--red)}
+
+/* DEFI ARCHIVED */
+.defi-card.archived{opacity:0.55;border-style:dashed}
+.defi-archived-title{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px;font-weight:500}
+
+/* ONBOARDING MODAL */
+#onboarding-modal .modal-sheet{text-align:center}
+#onboarding-modal .modal-title{font-size:22px}
+
+/* LEADERBOARD TOGGLE */
+.lb-toggle{display:flex;gap:4px;margin-bottom:12px}
+.lb-toggle-btn{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.lb-toggle-btn.active{background:rgba(200,241,53,0.15);border-color:rgba(200,241,53,0.4);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -226,9 +265,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div style="margin-bottom:12px">
       <input class="input" type="email" id="login-email" placeholder="Email" autocomplete="email"/>
     </div>
-    <div style="margin-bottom:20px">
+    <div style="margin-bottom:8px">
       <input class="input" type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password"/>
     </div>
+    <div id="forgot-link" style="text-align:right;margin-bottom:12px">
+      <span onclick="sendPasswordReset()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Mot de passe oublié ?</span>
+    </div>
+    <div id="forgot-msg" style="font-size:13px;margin-bottom:10px;display:none"></div>
     <div id="login-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
     <button class="btn btn-primary" id="login-submit-btn" style="margin-bottom:10px" onclick="doLogin()">Se connecter →</button>
     <button class="btn btn-ghost" id="login-toggle-btn" onclick="toggleSignup()">Créer un compte</button>
@@ -242,7 +285,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <div class="header-title" id="main-greeting">Salut !</div>
       <div class="header-sub" id="main-subtitle">Qu'est-ce qu'on fait ?</div>
     </div>
-    <button class="icon-btn" onclick="doLogout()">↩</button>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" onclick="showScreen('screen-settings','screen-main')" title="Paramètres">⚙</button>
+      <button class="icon-btn" onclick="doLogout()">↩</button>
+    </div>
   </div>
   <div class="scroll">
 
@@ -334,7 +380,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
 
     <div id="tab-amis" class="tab">
-      <div class="card"><div class="section-title">Classement cette semaine</div><div id="amis-list"></div></div>
+      <div class="card">
+        <div class="lb-toggle">
+          <button class="lb-toggle-btn active" id="lb-btn-week" onclick="setLbMode('week')">Cette semaine</button>
+          <button class="lb-toggle-btn" id="lb-btn-alltime" onclick="setLbMode('alltime')">All time</button>
+        </div>
+        <div class="section-title" id="lb-title">Classement cette semaine</div>
+        <div id="amis-list"></div>
+      </div>
       <div class="card" id="friend-requests-card" style="display:none">
         <div class="section-title">Demandes reçues</div>
         <div id="friend-requests-list"></div>
@@ -411,6 +464,91 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="pr-badge" id="detail-pr" style="display:none">🏆 Record : <span class="pr-value" id="detail-pr-val"></span></div>
     <div class="card"><div class="section-title">Évolution (20 dernières sessions)</div><div class="chart-container"><canvas id="chart-detail"></canvas></div></div>
     <div class="card"><div class="section-title">Historique complet</div><div id="detail-history"></div></div>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="screen-settings" class="screen hidden">
+  <div class="header">
+    <button class="back-btn" onclick="showScreen('screen-main','screen-settings')">← Retour</button>
+    <div class="header-title">Paramètres</div>
+    <div style="width:40px"></div>
+  </div>
+  <div class="scroll" style="padding-top:8px">
+    <div class="settings-section">
+      <div class="settings-section-title">Mon compte</div>
+      <div class="card">
+        <div style="margin-bottom:14px">
+          <label class="form-label">Changer de pseudo</label>
+          <div class="settings-input-row">
+            <input class="input" type="text" id="settings-pseudo" placeholder="Nouveau pseudo" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+            <button class="btn btn-primary btn-sm" onclick="changePseudo()">Valider</button>
+          </div>
+          <div id="settings-pseudo-msg" style="font-size:13px;display:none;margin-top:6px"></div>
+        </div>
+        <div style="margin-bottom:14px;border-top:1px solid var(--border);padding-top:14px">
+          <label class="form-label">Changer de mot de passe</label>
+          <div class="settings-input-row">
+            <input class="input" type="password" id="settings-pwd1" placeholder="Nouveau mot de passe"/>
+          </div>
+          <div class="settings-input-row">
+            <input class="input" type="password" id="settings-pwd2" placeholder="Confirmer"/>
+            <button class="btn btn-primary btn-sm" onclick="changePassword()">Valider</button>
+          </div>
+          <div id="settings-pwd-msg" style="font-size:13px;display:none;margin-top:6px"></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:14px">
+          <label class="form-label" style="color:var(--red)">Supprimer le compte</label>
+          <div id="delete-confirm-step1">
+            <button class="btn btn-sm" style="background:rgba(255,85,85,0.15);color:var(--red);border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="showDeleteConfirm()">Supprimer mon compte…</button>
+          </div>
+          <div id="delete-confirm-step2" style="display:none">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Cette action est irréversible. Tape <strong style="color:var(--red)">SUPPRIMER</strong> pour confirmer.</p>
+            <div class="settings-input-row">
+              <input class="input" type="text" id="delete-confirm-input" placeholder="SUPPRIMER" autocomplete="off"/>
+              <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap" onclick="deleteAccount()">Supprimer</button>
+            </div>
+            <div id="settings-delete-msg" style="font-size:13px;display:none;margin-top:6px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Apparence</div>
+      <div class="card">
+        <div class="settings-row">
+          <span class="settings-label">Mode clair</span>
+          <button class="toggle-btn" id="theme-toggle" onclick="toggleTheme()"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT LOG MODAL -->
+<div class="modal-overlay hidden" id="edit-log-modal" onclick="closeEditLogModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">Modifier le log</div>
+    <div class="modal-sub">Nombre de reps / secondes</div>
+    <input type="hidden" id="edit-log-id"/>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <input class="pts-input" type="number" id="edit-log-reps" min="1"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeEditLogModal()">Annuler</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitEditLog()">Enregistrer</button>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<!-- ONBOARDING MODAL -->
+<div class="modal-overlay hidden" id="onboarding-modal">
+  <div class="modal-sheet" style="text-align:center">
+    <div class="modal-title" style="font-size:22px;margin-bottom:12px">Bienvenue sur No Rep No Gain ! 🏋️</div>
+    <div class="modal-sub" style="margin-bottom:24px">Logge tes reps en 2 clics, fixe des défis avec tes amis, et suis ta progression.</div>
+    <button class="btn btn-primary" onclick="closeOnboarding()">C'est parti !</button>
+    <div style="height:8px"></div>
   </div>
 </div>
 
@@ -570,15 +708,26 @@ async function fsGetAdmin() {
 }
 async function fsGetMyLogs(username) {
   const snap = await col('logs').where('username','==',username).get();
-  return snap.docs.map(d=>d.data()).sort((a,b)=>a.ts-b.ts);
+  return snap.docs.map(d=>({_id:d.id,...d.data()})).sort((a,b)=>a.ts-b.ts);
 }
 async function fsGetWeekLogs(weekKey) {
   const snap = await col('logs').where('weekKey','==',weekKey).get();
   return snap.docs.map(d=>d.data());
 }
 async function fsAddLog(username, exoId, reps, ts) {
-  await col('logs').add({ username, exoId, reps, ts, weekKey: getWeekKey(ts) });
+  const ref = await col('logs').add({ username, exoId, reps, ts, weekKey: getWeekKey(ts) });
+  return ref.id;
 }
+async function fsDeleteLog(logId) { await col('logs').doc(logId).delete(); }
+async function fsUpdateLog(logId, reps) { await col('logs').doc(logId).update({ reps }); }
+async function fsGetAllLogsForUsers(usernames) {
+  if (!usernames.length) return [];
+  const batches = [];
+  for (let i = 0; i < usernames.length; i += 10) batches.push(usernames.slice(i, i+10));
+  const results = await Promise.all(batches.map(b => col('logs').where('username','in',b).get()));
+  return results.flatMap(s => s.docs.map(d => ({_id:d.id,...d.data()})));
+}
+async function fsDeleteDefi(id) { await col('defis').doc(id).delete(); }
 async function fsGetFavs(username) {
   const snap = await docR('favorites',username).get();
   return snap.exists ? (snap.data().exoIds||[]) : [];
@@ -621,6 +770,8 @@ let isSignupMode = false;
 function toggleSignup() {
   isSignupMode = !isSignupMode;
   document.getElementById('signup-field').style.display = isSignupMode ? '' : 'none';
+  document.getElementById('forgot-link').style.display = isSignupMode ? 'none' : '';
+  document.getElementById('forgot-msg').style.display = 'none';
   document.getElementById('login-password').setAttribute('autocomplete', isSignupMode ? 'new-password' : 'current-password');
   document.getElementById('login-submit-btn').textContent = isSignupMode ? 'Créer mon compte →' : 'Se connecter →';
   document.getElementById('login-toggle-btn').textContent = isSignupMode ? "J'ai déjà un compte" : 'Créer un compte';
@@ -670,6 +821,7 @@ function showMain() {
   showScreen('screen-main','screen-login');
   updateBadges();
   checkNotifications();
+  showOnboarding();
 }
 
 function switchTab(tab) {
@@ -683,15 +835,22 @@ function switchTab(tab) {
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
-function checkNotifications() {
+async function checkNotifications() {
   if (!cache.myLogs.length) return;
   const lastTs = Math.max(...cache.myLogs.map(l=>l.ts));
   const hours  = (Date.now()-lastTs)/3600000;
-  if (hours>48) showNotif(`⚡ Ça fait ${Math.floor(hours/24)} jours sans log !`,'warn');
-  else {
-    const pts = calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===getThisWeekKey()));
-    if (pts>=WEEKLY_GOAL) showNotif(`🎯 Objectif hebdo atteint ! ${pts} pts cette semaine.`,'info');
-  }
+  if (hours>48) { showNotif(`⚡ Ça fait ${Math.floor(hours/24)} jours sans log !`,'warn'); return; }
+  // Check défis expiring in < 24h
+  try {
+    const defis = await fsGetDefis();
+    const expiring = defis.filter(d=>d.active && d.endTs > Date.now() && d.endTs - Date.now() < 86400000);
+    if (expiring.length) {
+      showNotif(`⏰ Défi "${expiring[0].title}" se termine dans moins de 24h !`,'warn');
+      return;
+    }
+  } catch(e) {}
+  const pts = calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===getThisWeekKey()));
+  if (pts>=WEEKLY_GOAL) showNotif(`🎯 Objectif hebdo atteint ! ${pts} pts cette semaine.`,'info');
 }
 function showNotif(text,type) {
   const b=document.getElementById('notif-banner');
@@ -782,7 +941,9 @@ function renderLogHistory(exo,logs){
   if (!logs.length){el.innerHTML='<div class="empty-state" style="padding:20px 0">Aucun log encore</div>';return;}
   logs.slice(0,15).forEach(l=>{
     const d=document.createElement('div');d.className='hist-item';
-    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${l.reps} ${exo.unit==='sec'?'sec':'reps'} · ${Math.round(l.reps*exo.pts)} pts</span>`;
+    const lid=l._id||'';
+    const btns=lid?`<button class="hist-icon-btn" onclick="openEditLog('${lid}',${l.reps})">✏</button><button class="hist-icon-btn del" onclick="deleteLog('${lid}')">🗑</button>`:'';
+    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${l.reps} ${exo.unit==='sec'?'sec':'reps'} · ${Math.round(l.reps*exo.pts)} pts</span><div class="hist-actions">${btns}</div>`;
     el.appendChild(d);
   });
 }
@@ -800,8 +961,13 @@ async function saveLog() {
   setTimeout(()=>flash.style.display='none',2000);
   document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${currentReps} ${currentExo.unit==='sec'?'sec':'reps'}</strong> — à l'instant`;
   renderLogHistory(currentExo, cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts));
-  // Write to Firestore in background
-  await fsAddLog(currentUser,currentExo.id,currentReps,ts);
+  // Write to Firestore and capture ID
+  const newId = await fsAddLog(currentUser,currentExo.id,currentReps,ts);
+  // Attach _id to cache entry
+  const cached = cache.myLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
+  if (cached) cached._id = newId;
+  const cachedW = cache.weekLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
+  if (cachedW) cachedW._id = newId;
 }
 function goBackFromLog(){showScreen('screen-main','screen-log');}
 
@@ -941,61 +1107,105 @@ async function createDefi(){
   toggleCreateDefi(); document.getElementById('defi-target').value='';
   renderDefis(); updateBadges();
 }
-async function renderDefis(){
-  const el=document.getElementById('defis-list'); el.innerHTML='';
-  const defis=await fsGetDefis();
-  const active=defis.filter(d=>d.active&&Date.now()<=d.endTs);
-  defis.filter(d=>d.active&&Date.now()>d.endTs).forEach(d=>fsUpdateDefi(d.id,{active:false}));
-  if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';return;}
-  active.forEach(defi=>{
-    const type=defi.type||'reps';
-    const byUser={};
-    if (type==='reps'){
-      cache.weekLogs.filter(l=>l.exoId===defi.exoId&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
-    } else if (type==='points'){
-      cache.weekLogs.filter(l=>l.ts>=defi.startTs).forEach(l=>{
-        const exo=EXERCISES.find(e=>e.id===l.exoId);
-        byUser[l.username]=(byUser[l.username]||0)+(exo?Math.round(l.reps*exo.pts):0);
-      });
-    } else if (type==='multi'){
-      cache.weekLogs.filter(l=>(defi.exoIds||[]).includes(l.exoId)&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
-    }
-    const rankings=Object.entries(byUser).map(([n,t])=>({name:n,total:t})).sort((a,b)=>b.total-a.total);
-    if (!rankings.find(r=>r.name===currentUser)) rankings.push({name:currentUser,total:0});
-    const maxTotal=Math.max(...rankings.map(r=>r.total),defi.target);
+function buildDefiCard(defi, logs, isArchived) {
+  const type=defi.type||'reps';
+  const byUser={};
+  if (type==='reps'){
+    logs.filter(l=>l.exoId===defi.exoId&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+  } else if (type==='points'){
+    logs.filter(l=>l.ts>=defi.startTs).forEach(l=>{
+      const exo=EXERCISES.find(e=>e.id===l.exoId);
+      byUser[l.username]=(byUser[l.username]||0)+(exo?Math.round(l.reps*exo.pts):0);
+    });
+  } else if (type==='multi'){
+    logs.filter(l=>(defi.exoIds||[]).includes(l.exoId)&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+  }
+  const rankings=Object.entries(byUser).map(([n,t])=>({name:n,total:t})).sort((a,b)=>b.total-a.total);
+  if (!isArchived && !rankings.find(r=>r.name===currentUser)) rankings.push({name:currentUser,total:0});
+  const maxTotal=Math.max(...rankings.map(r=>r.total),defi.target,1);
+  const unit=type==='points'?'pts':type==='multi'?'reps':(defi.unit==='sec'?'sec':'reps');
+  const card=document.createElement('div');
+  card.className='defi-card'+(isArchived?' archived':'');
+  const isCreator=defi.creator===currentUser;
+  if (isArchived) {
+    const winner=rankings[0];
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="defi-title" style="color:var(--muted)">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Terminé · Gagnant : ${winner?cap(winner.name):'—'} (${winner?winner.total:0} ${unit})</div>`;
+  } else {
     const daysLeft=Math.max(0,Math.ceil((defi.endTs-Date.now())/86400000));
     const myTotal=(rankings.find(r=>r.name===currentUser)||{total:0}).total;
     const targetPct=Math.min(100,Math.round(myTotal/defi.target*100));
-    const unit=type==='points'?'pts':type==='multi'?'reps':(defi.unit==='sec'?'sec':'reps');
-    const card=document.createElement('div');card.className='defi-card';
-    card.innerHTML=`<div class="defi-title">${defi.title}</div><div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
       rankings.map(r=>{const pct=Math.min(100,Math.round(r.total/maxTotal*100));const isMe=r.name===currentUser;return`<div class="defi-row"><div class="defi-user" style="${isMe?'color:var(--accent)':''}">${cap(r.name)}</div><div class="defi-bar-wrap"><div class="defi-bar-fill" style="width:${pct}%"></div></div><div class="defi-score">${r.total} ${unit}</div></div>`;}).join('');
-    el.appendChild(card);
-  });
+  }
+  return card;
+}
+
+async function renderDefis(){
+  const el=document.getElementById('defis-list'); el.innerHTML='';
+  const defis=await fsGetDefis();
+  // Archive expired active défis
+  const toArchive=defis.filter(d=>d.active&&Date.now()>d.endTs);
+  toArchive.forEach(d=>fsUpdateDefi(d.id,{active:false}));
+  const active=defis.filter(d=>d.active&&Date.now()<=d.endTs);
+  const archived=defis.filter(d=>!d.active||Date.now()>d.endTs);
+  if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
+  else active.forEach(defi=>{el.appendChild(buildDefiCard(defi, cache.weekLogs, false));});
+  if (archived.length){
+    const archTitle=document.createElement('div');archTitle.className='defi-archived-title';archTitle.textContent='Défis terminés';el.appendChild(archTitle);
+    archived.forEach(defi=>{el.appendChild(buildDefiCard(defi, cache.weekLogs, true));});
+  }
+}
+
+async function deleteDefi(id){
+  await fsDeleteDefi(id);
+  renderDefis();
 }
 
 // ─── AMIS ─────────────────────────────────────────────────────────────────────
+let lbMode = 'week';
+function setLbMode(mode) {
+  lbMode = mode;
+  document.getElementById('lb-btn-week').classList.toggle('active', mode==='week');
+  document.getElementById('lb-btn-alltime').classList.toggle('active', mode==='alltime');
+  document.getElementById('lb-title').textContent = mode==='week' ? 'Classement cette semaine' : 'Classement all time';
+  renderLeaderboard();
+}
+async function renderLeaderboard() {
+  const el=document.getElementById('amis-list'); el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">Chargement…</div>';
+  const accepted = cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
+  const visibleUsers=[currentUser,...accepted];
+  const userPts={};
+  if (lbMode==='week') {
+    cache.weekLogs.filter(l=>visibleUsers.includes(l.username)).forEach(l=>{
+      const exo=EXERCISES.find(e=>e.id===l.exoId);
+      userPts[l.username]=(userPts[l.username]||0)+(exo?l.reps*exo.pts:0);
+    });
+    if (!userPts[currentUser]) userPts[currentUser]=0;
+  } else {
+    const allLogs = await fsGetAllLogsForUsers(visibleUsers);
+    allLogs.forEach(l=>{
+      const exo=EXERCISES.find(e=>e.id===l.exoId);
+      userPts[l.username]=(userPts[l.username]||0)+(exo?l.reps*exo.pts:0);
+    });
+    if (!userPts[currentUser]) userPts[currentUser]=0;
+  }
+  const label = lbMode==='week' ? 'pts cette semaine' : 'pts all time';
+  el.innerHTML='';
+  const rankings=Object.entries(userPts).map(([n,p])=>({name:n,pts:Math.round(p)})).sort((a,b)=>b.pts-a.pts);
+  rankings.forEach((u,i)=>{
+    const isMe=u.name===currentUser;
+    const d=document.createElement('div');d.className='ami-row';
+    d.innerHTML=`<div class="avatar">${cap(u.name)[0]}</div><div class="ami-info"><div class="ami-name">${cap(u.name)}${isMe?' (toi)':''}</div><div class="ami-pts">${u.pts} ${label}</div></div><div class="ami-rank ${i===0?'top':''}">${i+1}</div>`;
+    el.appendChild(d);
+  });
+}
 async function renderAmis(){
   cache.friendships = await fsGetFriendships();
   const accepted = cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
   const pendingIn = cache.friendships.filter(f=>f.status==='pending'&&f.requester!==currentUser);
 
-  // Leaderboard — moi + amis acceptés
-  const el=document.getElementById('amis-list'); el.innerHTML='';
-  const visibleUsers=new Set([currentUser,...accepted]);
-  const userPts={};
-  cache.weekLogs.filter(l=>visibleUsers.has(l.username)).forEach(l=>{
-    const exo=EXERCISES.find(e=>e.id===l.exoId);
-    userPts[l.username]=(userPts[l.username]||0)+(exo?l.reps*exo.pts:0);
-  });
-  if (!userPts[currentUser]) userPts[currentUser]=0;
-  const rankings=Object.entries(userPts).map(([n,p])=>({name:n,pts:Math.round(p)})).sort((a,b)=>b.pts-a.pts);
-  rankings.forEach((u,i)=>{
-    const isMe=u.name===currentUser;
-    const d=document.createElement('div');d.className='ami-row';
-    d.innerHTML=`<div class="avatar">${cap(u.name)[0]}</div><div class="ami-info"><div class="ami-name">${cap(u.name)}${isMe?' (toi)':''}</div><div class="ami-pts">${u.pts} pts cette semaine</div></div><div class="ami-rank ${i===0?'top':''}">${i+1}</div>`;
-    el.appendChild(d);
-  });
+  // Leaderboard
+  await renderLeaderboard();
 
   // Demandes reçues
   const reqCard=document.getElementById('friend-requests-card');
@@ -1104,6 +1314,152 @@ async function respondProposal(id, status){
   updateBadges(); renderAdminProposals();
 }
 
+// ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
+async function sendPasswordReset() {
+  const email = document.getElementById('login-email').value.trim();
+  const msgEl = document.getElementById('forgot-msg');
+  if (!email) { msgEl.style.color='var(--red)'; msgEl.textContent='Entre ton email d\'abord.'; msgEl.style.display=''; return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    msgEl.style.color='var(--accent)'; msgEl.textContent='Email de réinitialisation envoyé !'; msgEl.style.display='';
+  } catch(e) {
+    msgEl.style.color='var(--red)'; msgEl.textContent='Erreur : '+e.message; msgEl.style.display='';
+  }
+}
+
+// ─── LOG DELETE / EDIT ────────────────────────────────────────────────────────
+async function deleteLog(logId) {
+  if (!logId) return;
+  await fsDeleteLog(logId);
+  cache.myLogs = cache.myLogs.filter(l=>l._id!==logId);
+  cache.weekLogs = cache.weekLogs.filter(l=>l._id!==logId);
+  const logs = cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts);
+  renderLogHistory(currentExo, logs);
+}
+function openEditLog(logId, reps) {
+  document.getElementById('edit-log-id').value = logId;
+  document.getElementById('edit-log-reps').value = reps;
+  document.getElementById('edit-log-modal').classList.remove('hidden');
+}
+function closeEditLogModal(e) {
+  if (e && e.target !== document.getElementById('edit-log-modal')) return;
+  document.getElementById('edit-log-modal').classList.add('hidden');
+}
+async function submitEditLog() {
+  const logId = document.getElementById('edit-log-id').value;
+  const reps = parseInt(document.getElementById('edit-log-reps').value);
+  if (!logId || !reps || reps < 1) return;
+  await fsUpdateLog(logId, reps);
+  const entry = cache.myLogs.find(l=>l._id===logId);
+  if (entry) entry.reps = reps;
+  const entryW = cache.weekLogs.find(l=>l._id===logId);
+  if (entryW) entryW.reps = reps;
+  document.getElementById('edit-log-modal').classList.add('hidden');
+  const logs = cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts);
+  renderLogHistory(currentExo, logs);
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────────
+async function changePseudo() {
+  const newPseudo = document.getElementById('settings-pseudo').value.trim().toLowerCase();
+  const msgEl = document.getElementById('settings-pseudo-msg');
+  if (!newPseudo || newPseudo === currentUser) { msgEl.style.color='var(--red)'; msgEl.textContent='Entre un nouveau pseudo valide.'; msgEl.style.display=''; return; }
+  msgEl.style.color='var(--muted)'; msgEl.textContent='Mise à jour…'; msgEl.style.display='';
+  try {
+    const oldPseudo = currentUser;
+    // Migrate Firestore docs
+    const batch = db.batch();
+    // logs
+    const logSnap = await col('logs').where('username','==',oldPseudo).get();
+    logSnap.docs.forEach(d=>batch.update(d.ref,{username:newPseudo}));
+    // favorites
+    const favSnap = await docR('favorites',oldPseudo).get();
+    if (favSnap.exists) { batch.set(docR('favorites',newPseudo),favSnap.data()); batch.delete(docR('favorites',oldPseudo)); }
+    // friendships
+    const fsSnap = await col('friendships').where('users','array-contains',oldPseudo).get();
+    fsSnap.docs.forEach(d=>{
+      const u=d.data().users.map(u=>u===oldPseudo?newPseudo:u);
+      const req=d.data().requester===oldPseudo?newPseudo:d.data().requester;
+      batch.update(d.ref,{users:u,requester:req});
+    });
+    // users collection
+    const userSnap = await docR('users',oldPseudo).get();
+    if (userSnap.exists) { batch.set(docR('users',newPseudo),{...userSnap.data(),username:newPseudo}); batch.delete(docR('users',oldPseudo)); }
+    await batch.commit();
+    await auth.currentUser.updateProfile({displayName:newPseudo});
+    currentUser = newPseudo;
+    cache.myLogs.forEach(l=>{ if(l.username===oldPseudo) l.username=newPseudo; });
+    cache.weekLogs.forEach(l=>{ if(l.username===oldPseudo) l.username=newPseudo; });
+    document.getElementById('main-greeting').textContent = 'Salut '+cap(currentUser)+' !';
+    msgEl.style.color='var(--accent)'; msgEl.textContent='Pseudo changé avec succès !';
+    document.getElementById('settings-pseudo').value='';
+  } catch(e) { msgEl.style.color='var(--red)'; msgEl.textContent='Erreur : '+e.message; }
+}
+async function changePassword() {
+  const pwd1 = document.getElementById('settings-pwd1').value;
+  const pwd2 = document.getElementById('settings-pwd2').value;
+  const msgEl = document.getElementById('settings-pwd-msg');
+  if (!pwd1 || pwd1.length < 6) { msgEl.style.color='var(--red)'; msgEl.textContent='6 caractères minimum.'; msgEl.style.display=''; return; }
+  if (pwd1 !== pwd2) { msgEl.style.color='var(--red)'; msgEl.textContent='Les mots de passe ne correspondent pas.'; msgEl.style.display=''; return; }
+  try {
+    await auth.currentUser.updatePassword(pwd1);
+    msgEl.style.color='var(--accent)'; msgEl.textContent='Mot de passe changé !'; msgEl.style.display='';
+    document.getElementById('settings-pwd1').value=''; document.getElementById('settings-pwd2').value='';
+  } catch(e) {
+    const msg = e.code==='auth/requires-recent-login' ? 'Reconnecte-toi d\'abord pour changer le mot de passe.' : 'Erreur : '+e.message;
+    msgEl.style.color='var(--red)'; msgEl.textContent=msg; msgEl.style.display='';
+  }
+}
+function showDeleteConfirm() {
+  document.getElementById('delete-confirm-step1').style.display='none';
+  document.getElementById('delete-confirm-step2').style.display='';
+}
+async function deleteAccount() {
+  const val = document.getElementById('delete-confirm-input').value.trim();
+  const msgEl = document.getElementById('settings-delete-msg');
+  if (val !== 'SUPPRIMER') { msgEl.style.color='var(--red)'; msgEl.textContent='Tape exactement SUPPRIMER.'; msgEl.style.display=''; return; }
+  msgEl.style.color='var(--muted)'; msgEl.textContent='Suppression…'; msgEl.style.display='';
+  try {
+    const batch = db.batch();
+    const logSnap = await col('logs').where('username','==',currentUser).get();
+    logSnap.docs.forEach(d=>batch.delete(d.ref));
+    const favRef = docR('favorites',currentUser);
+    batch.delete(favRef);
+    const fsSnap = await col('friendships').where('users','array-contains',currentUser).get();
+    fsSnap.docs.forEach(d=>batch.delete(d.ref));
+    batch.delete(docR('users',currentUser));
+    await batch.commit();
+    await auth.currentUser.delete();
+  } catch(e) {
+    const msg = e.code==='auth/requires-recent-login' ? 'Reconnecte-toi d\'abord.' : 'Erreur : '+e.message;
+    msgEl.style.color='var(--red)'; msgEl.textContent=msg; msgEl.style.display='';
+  }
+}
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+function applyTheme() {
+  const isLight = localStorage.getItem('rf_theme')==='light';
+  document.body.classList.toggle('light', isLight);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.classList.toggle('on', isLight);
+}
+function toggleTheme() {
+  const isLight = !document.body.classList.contains('light');
+  localStorage.setItem('rf_theme', isLight ? 'light' : 'dark');
+  applyTheme();
+}
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+function showOnboarding() {
+  if (!localStorage.getItem('rf_onboarded')) {
+    document.getElementById('onboarding-modal').classList.remove('hidden');
+  }
+}
+function closeOnboarding() {
+  localStorage.setItem('rf_onboarded','1');
+  document.getElementById('onboarding-modal').classList.add('hidden');
+}
+
 // ─── MISC ─────────────────────────────────────────────────────────────────────
 function copyLink(){
   navigator.clipboard.writeText(window.location.href.split('?')[0]).then(()=>{
@@ -1141,6 +1497,9 @@ auth.onAuthStateChanged(async (user) => {
 
 document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// Apply saved theme on load
+applyTheme();
 </script>
 </body>
 </html>
