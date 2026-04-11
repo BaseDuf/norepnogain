@@ -380,6 +380,10 @@ body.light {
               </select>
             </div>
           </div>
+          <div class="form-row" id="defi-friends-row" style="display:none">
+            <label class="form-label">Défier des amis (optionnel)</label>
+            <div id="defi-friends-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
           <div style="display:flex;gap:8px;margin-top:4px">
             <button class="btn btn-ghost btn-sm" onclick="toggleCreateDefi()">Annuler</button>
             <button class="btn btn-primary btn-sm" onclick="createDefi()" style="flex:1">Créer</button>
@@ -1078,11 +1082,11 @@ function openExoDetail(exo){
 }
 
 // ─── DÉFIS ────────────────────────────────────────────────────────────────────
-let defiMultiSelected=[];
+let defiMultiSelected=[], defiInvited=[];
 function toggleCreateDefi(){
   const f=document.getElementById('create-defi-form'); f.classList.toggle('open');
   if (f.classList.contains('open')){
-    defiMultiSelected=[];
+    defiMultiSelected=[]; defiInvited=[];
     document.getElementById('defi-exo').value='';
     document.getElementById('defi-exo-search').value='';
     document.getElementById('defi-multi-search').value='';
@@ -1090,6 +1094,25 @@ function toggleCreateDefi(){
     onDefiTypeChange();
     filterDefiExos();
     filterDefiMulti();
+    // Populate friends chips
+    const friends=cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
+    const row=document.getElementById('defi-friends-row');
+    if (friends.length){
+      row.style.display='';
+      document.getElementById('defi-friends-chips').innerHTML=friends.map(name=>`
+        <div class="defi-chip" id="chip-${name}" onclick="toggleDefiInvite('${name}')" style="opacity:0.5">${cap(name)}</div>
+      `).join('');
+    } else row.style.display='none';
+  }
+}
+function toggleDefiInvite(name){
+  const chip=document.getElementById('chip-'+name);
+  if (defiInvited.includes(name)){
+    defiInvited=defiInvited.filter(n=>n!==name);
+    chip.style.opacity='0.5';
+  } else {
+    defiInvited.push(name);
+    chip.style.opacity='1';
   }
 }
 function filterDefiExos(){
@@ -1138,7 +1161,8 @@ async function createDefi(){
   if (!target||target<1) return;
   const days=parseInt(document.getElementById('defi-duration-val').value||1)*parseInt(document.getElementById('defi-duration-unit').value);
   const end=new Date(); end.setDate(end.getDate()+days); end.setHours(23,59,59,999);
-  const base={type,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true};
+  const participants=defiInvited.length?[currentUser,...defiInvited]:[];
+  const base={type,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true,participants};
   if (type==='reps'){
     const exoId=document.getElementById('defi-exo').value;
     const exo=EXERCISES.find(e=>e.id===exoId); if (!exo) return;
@@ -1180,7 +1204,9 @@ function buildDefiCard(defi, logs, isArchived) {
     const daysLeft=Math.max(0,Math.ceil((defi.endTs-Date.now())/86400000));
     const myTotal=(rankings.find(r=>r.name===currentUser)||{total:0}).total;
     const targetPct=Math.min(100,Math.round(myTotal/defi.target*100));
-    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
+    const challenged=defi.participants?.length?defi.participants.filter(p=>p!==defi.creator).map(cap).join(', '):'';
+    const challengedStr=challenged?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">⚔️ ${cap(defi.creator)} vs ${challenged}</div>`:'';
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div>${challengedStr}<div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
       rankings.map(r=>{const pct=Math.min(100,Math.round(r.total/maxTotal*100));const isMe=r.name===currentUser;return`<div class="defi-row"><div class="defi-user" style="${isMe?'color:var(--accent)':''}">${cap(r.name)}</div><div class="defi-bar-wrap"><div class="defi-bar-fill" style="width:${pct}%"></div></div><div class="defi-score">${r.total} ${unit}</div></div>`;}).join('');
   }
   return card;
@@ -1192,7 +1218,7 @@ async function renderDefis(){
   // Archive expired active défis
   const toArchive=defis.filter(d=>d.active&&Date.now()>d.endTs);
   toArchive.forEach(d=>fsUpdateDefi(d.id,{active:false}));
-  const active=defis.filter(d=>d.active&&Date.now()<=d.endTs);
+  const active=defis.filter(d=>d.active&&Date.now()<=d.endTs&&(!d.participants?.length||d.participants.includes(currentUser)));
   const archived=defis.filter(d=>!d.active||Date.now()>d.endTs);
   if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
   else active.forEach(defi=>{el.appendChild(buildDefiCard(defi, cache.weekLogs, false));});
