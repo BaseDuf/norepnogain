@@ -821,8 +821,8 @@ function renderChart(){
     document.getElementById('chart-title').textContent='Points par mois (12 derniers mois)';
   } else {
     const allTs=cache.myLogs.map(l=>l.ts);
-    const minY=allTs.length?new Date(Math.min(...allTs)).getFullYear():new Date().getFullYear();
     const maxY=new Date().getFullYear();
+    const minY=Math.min(allTs.length?new Date(Math.min(...allTs)).getFullYear():maxY, maxY-4);
     const years=[]; for(let y=minY;y<=maxY;y++) years.push(String(y));
     labels=years;
     values=years.map(y=>calcPts(cache.myLogs.filter(l=>String(new Date(l.ts).getFullYear())===y)));
