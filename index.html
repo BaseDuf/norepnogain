@@ -193,6 +193,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .empty-state{text-align:center;padding:40px 24px;color:var(--muted);font-size:15px;line-height:1.6}
 .zoom-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 11px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
 .zoom-btn.active{background:rgba(200,241,53,0.15);border-color:rgba(200,241,53,0.4);color:var(--accent)}
+.friend-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.friend-row:last-child{border-bottom:none}
+.friend-actions{display:flex;gap:6px}
+.btn-danger{background:rgba(255,85,85,0.15);color:var(--red);border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-accept-sm{background:rgba(200,241,53,0.15);color:var(--accent);border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
 </style>
 </head>
 <body>
@@ -330,10 +335,26 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
     <div id="tab-amis" class="tab">
       <div class="card"><div class="section-title">Classement cette semaine</div><div id="amis-list"></div></div>
+      <div class="card" id="friend-requests-card" style="display:none">
+        <div class="section-title">Demandes reçues</div>
+        <div id="friend-requests-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Mes amis</div>
+        <div id="friends-list-section"><div class="empty-state" style="padding:16px 0;font-size:14px">Aucun ami encore.</div></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Ajouter un ami</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input class="input" id="friend-search-input" placeholder="Pseudo exact…" style="flex:1" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+          <button class="btn btn-primary btn-sm" onclick="searchFriend()">Chercher</button>
+        </div>
+        <div id="friend-search-result"></div>
+      </div>
       <div class="card">
         <div class="section-title">Inviter un ami</div>
         <p style="font-size:14px;color:var(--muted);margin-bottom:12px;line-height:1.6">Partage ce lien. Ton ami crée son compte et apparaît dans le classement.</p>
-        <div class="share-box"><div class="share-url" id="share-url">repflow.vercel.app</div><button class="copy-btn" onclick="copyLink()">Copier</button></div>
+        <div class="share-box"><div class="share-url" id="share-url">norepnogain.fr</div><button class="copy-btn" onclick="copyLink()">Copier</button></div>
       </div>
       <div id="admin-section" style="display:none">
         <div class="admin-banner">⚡ Mode admin activé</div>
@@ -356,6 +377,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <button class="nav-btn" id="nav-amis" onclick="switchTab('amis')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Amis
       <span class="nav-badge" id="badge-admin" style="display:none"></span>
+      <span class="nav-badge" id="badge-amis" style="display:none"></span>
     </button>
   </div>
 </div>
@@ -487,7 +509,7 @@ const WEEKLY_GOAL = 500;
 let EXERCISES = DEFAULT_EXO.map(e=>({...e}));
 
 // ─── CACHE (mémoire locale, rafraîchi depuis Firestore) ───────────────────────
-let cache = { myLogs:[], weekLogs:[], favorites:[], adminUser:null };
+let cache = { myLogs:[], weekLogs:[], favorites:[], adminUser:null, friendships:[] };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentUser = null, currentExo = null, currentReps = 10;
@@ -575,6 +597,12 @@ async function fsApplyOverrides() {
   const ov = await fsGetPtsOverrides();
   EXERCISES = DEFAULT_EXO.map(e=>({...e, pts: ov[e.id]!==undefined ? ov[e.id] : e.pts}));
 }
+function friendshipId(a,b){return[a,b].sort().join('___');}
+async function fsGetFriendships(){const snap=await col('friendships').where('users','array-contains',currentUser).get();return snap.docs.map(d=>({id:d.id,...d.data()}));}
+async function fsSendFriendRequest(to){const id=friendshipId(currentUser,to);const ex=await docR('friendships',id).get();if(ex.exists)return'exists';await docR('friendships',id).set({users:[currentUser,to],status:'pending',requester:currentUser,ts:Date.now()});}
+async function fsAcceptFriendship(id){await docR('friendships',id).update({status:'accepted'});}
+async function fsDeleteFriendship(id){await docR('friendships',id).delete();}
+async function fsSearchUser(username){const snap=await docR('users',username).get();return snap.exists?snap.data():null;}
 async function fsGetProposals() {
   const snap = await col('proposals').orderBy('ts','desc').get();
   return snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -679,6 +707,9 @@ function updateBadges() {
       if (s.size>0){b.textContent=s.size;b.style.display='';}else b.style.display='none';
     });
   }
+  const pendingIn=cache.friendships.filter(f=>f.status==='pending'&&f.requester!==currentUser).length;
+  const ba=document.getElementById('badge-amis');
+  if (pendingIn>0){ba.textContent=pendingIn;ba.style.display='';}else ba.style.display='none';
 }
 
 // ─── LOGGER ───────────────────────────────────────────────────────────────────
@@ -945,29 +976,89 @@ async function renderDefis(){
 
 // ─── AMIS ─────────────────────────────────────────────────────────────────────
 async function renderAmis(){
+  cache.friendships = await fsGetFriendships();
+  const accepted = cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
+  const pendingIn = cache.friendships.filter(f=>f.status==='pending'&&f.requester!==currentUser);
+
+  // Leaderboard — moi + amis acceptés
   const el=document.getElementById('amis-list'); el.innerHTML='';
-  // Group weekLogs by user
-  const byUser={};
-  cache.weekLogs.forEach(l=>{byUser[l.username]=(byUser[l.username]||{exoId:l.exoId,logs:[]}); if(!byUser[l.username].logs)byUser[l.username].logs=[]; byUser[l.username].logs.push(l);});
-  // Simpler: just sum pts per user
+  const visibleUsers=new Set([currentUser,...accepted]);
   const userPts={};
-  cache.weekLogs.forEach(l=>{
+  cache.weekLogs.filter(l=>visibleUsers.has(l.username)).forEach(l=>{
     const exo=EXERCISES.find(e=>e.id===l.exoId);
     userPts[l.username]=(userPts[l.username]||0)+(exo?l.reps*exo.pts:0);
   });
   if (!userPts[currentUser]) userPts[currentUser]=0;
   const rankings=Object.entries(userPts).map(([n,p])=>({name:n,pts:Math.round(p)})).sort((a,b)=>b.pts-a.pts);
-  if (!rankings.length){el.innerHTML='<div class="empty-state">Personne encore.<br>Invite tes amis !</div>';}
-  else rankings.forEach((u,i)=>{
+  rankings.forEach((u,i)=>{
     const isMe=u.name===currentUser;
     const d=document.createElement('div');d.className='ami-row';
     d.innerHTML=`<div class="avatar">${cap(u.name)[0]}</div><div class="ami-info"><div class="ami-name">${cap(u.name)}${isMe?' (toi)':''}</div><div class="ami-pts">${u.pts} pts cette semaine</div></div><div class="ami-rank ${i===0?'top':''}">${i+1}</div>`;
     el.appendChild(d);
   });
+
+  // Demandes reçues
+  const reqCard=document.getElementById('friend-requests-card');
+  const reqList=document.getElementById('friend-requests-list');
+  if (pendingIn.length){
+    reqCard.style.display='';
+    reqList.innerHTML='';
+    pendingIn.forEach(f=>{
+      const d=document.createElement('div');d.className='friend-row';
+      d.innerHTML=`<div style="font-size:15px">${cap(f.requester)}</div><div class="friend-actions"><button class="btn-accept-sm" onclick="acceptFriend('${f.id}')">Accepter</button><button class="btn-danger" onclick="rejectFriend('${f.id}')">Refuser</button></div>`;
+      reqList.appendChild(d);
+    });
+  } else reqCard.style.display='none';
+
+  // Mes amis
+  const friendsEl=document.getElementById('friends-list-section'); friendsEl.innerHTML='';
+  if (!accepted.length){friendsEl.innerHTML='<div class="empty-state" style="padding:16px 0;font-size:14px">Aucun ami encore.</div>';}
+  else accepted.forEach(name=>{
+    const fs=cache.friendships.find(f=>f.users.includes(name)&&f.status==='accepted');
+    const d=document.createElement('div');d.className='friend-row';
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:32px;height:32px;font-size:13px">${cap(name)[0]}</div><div style="font-size:15px">${cap(name)}</div></div><button class="btn-danger" onclick="removeFriend('${fs.id}')">Retirer</button>`;
+    friendsEl.appendChild(d);
+  });
+
   document.getElementById('share-url').textContent=window.location.href.split('?')[0];
   const adminSec=document.getElementById('admin-section');
   if (isAdmin()){adminSec.style.display='';renderAdminProposals();}
   else adminSec.style.display='none';
+  updateBadges();
+}
+
+async function searchFriend(){
+  const input=document.getElementById('friend-search-input').value.trim().toLowerCase();
+  const el=document.getElementById('friend-search-result'); el.innerHTML='';
+  if (!input) return;
+  if (input===currentUser){el.innerHTML='<div style="font-size:14px;color:var(--muted)">C\'est toi !</div>';return;}
+  const user=await fsSearchUser(input);
+  if (!user){el.innerHTML='<div style="font-size:14px;color:var(--muted)">Utilisateur introuvable.</div>';return;}
+  const existing=cache.friendships.find(f=>f.users.includes(input));
+  let btn='';
+  if (!existing) btn=`<button class="btn btn-primary btn-sm" onclick="sendFriendReq('${input}')">Demander en ami</button>`;
+  else if (existing.status==='pending'&&existing.requester===currentUser) btn=`<span style="font-size:13px;color:var(--muted)">Demande envoyée</span>`;
+  else if (existing.status==='pending') btn=`<button class="btn-accept-sm" onclick="acceptFriend('${existing.id}')">Accepter</button>`;
+  else btn=`<span style="font-size:13px;color:var(--accent)">Déjà ami ✓</span>`;
+  el.innerHTML=`<div class="friend-row">${cap(input)}${btn}</div>`;
+}
+
+async function sendFriendReq(to){
+  await fsSendFriendRequest(to);
+  cache.friendships=await fsGetFriendships();
+  searchFriend();
+}
+async function acceptFriend(id){
+  await fsAcceptFriendship(id);
+  renderAmis();
+}
+async function rejectFriend(id){
+  await fsDeleteFriendship(id);
+  renderAmis();
+}
+async function removeFriend(id){
+  await fsDeleteFriendship(id);
+  renderAmis();
 }
 
 // ─── PROPOSALS ────────────────────────────────────────────────────────────────
@@ -1027,10 +1118,11 @@ auth.onAuthStateChanged(async (user) => {
     try {
       currentUser = user.displayName || user.email.split('@')[0];
       await fsEnsureUser(currentUser);
-      cache.adminUser = await fsGetAdmin();
-      cache.favorites = await fsGetFavs(currentUser);
-      cache.myLogs    = await fsGetMyLogs(currentUser);
-      cache.weekLogs  = await fsGetWeekLogs(getThisWeekKey());
+      cache.adminUser    = await fsGetAdmin();
+      cache.favorites    = await fsGetFavs(currentUser);
+      cache.myLogs       = await fsGetMyLogs(currentUser);
+      cache.weekLogs     = await fsGetWeekLogs(getThisWeekKey());
+      cache.friendships  = await fsGetFriendships();
       await fsApplyOverrides();
       showMain();
     } catch(e) { console.error(e); showScreen('screen-login',null); }
