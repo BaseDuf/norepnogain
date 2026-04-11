@@ -309,13 +309,25 @@ body.light {
         <div class="week-header">
           <div><div class="week-pts" id="week-total-pts">0 pts</div><div class="week-label">cette semaine</div></div>
           <div style="text-align:right">
-            <div style="font-size:13px;color:var(--muted)">objectif</div>
-            <div style="font-size:18px;font-weight:500;font-family:'DM Mono',monospace" id="week-goal-display">500 pts</div>
+            <div style="font-size:13px;color:var(--muted)">objectif hebdo</div>
+            <div style="font-size:18px;font-weight:500;font-family:'DM Mono',monospace;cursor:pointer" id="week-goal-display" onclick="editGoal('week')" title="Modifier">500 pts ✎</div>
           </div>
         </div>
         <div class="progress-wrap">
           <div class="progress-track"><div class="progress-fill" id="week-progress-bar" style="width:0%"></div></div>
           <div class="progress-labels"><span id="week-pct">0%</span><span>semaine en cours</span></div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="week-header">
+          <div><div class="week-pts" id="month-total-pts" style="font-size:24px">0 pts</div><div class="week-label">ce mois</div></div>
+          <div style="text-align:right">
+            <div style="font-size:13px;color:var(--muted)">objectif mensuel</div>
+            <div style="font-size:18px;font-weight:500;font-family:'DM Mono',monospace;cursor:pointer" id="month-goal-display" onclick="editGoal('month')" title="Modifier">2000 pts ✎</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill" id="month-progress-bar" style="width:0%;background:var(--orange)"></div></div>
+          <div class="progress-labels"><span id="month-pct">0%</span><span>mois en cours</span></div>
         </div>
       </div>
       <div class="card">
@@ -658,7 +670,8 @@ const DEFAULT_EXO = [
   {id:'planche',      name:'Planche',                  pts:5,   unit:'sec', cat:'Statique'},
   {id:'human-flag',   name:'Human flag',               pts:3,   unit:'sec', cat:'Statique'},
 ];
-const WEEKLY_GOAL = 500;
+let WEEKLY_GOAL = parseInt(localStorage.getItem('rf_goal_week')||'500');
+let MONTHLY_GOAL = parseInt(localStorage.getItem('rf_goal_month')||'2000');
 let EXERCISES = DEFAULT_EXO.map(e=>({...e}));
 
 // ─── CACHE (mémoire locale, rafraîchi depuis Firestore) ───────────────────────
@@ -850,6 +863,14 @@ function switchTab(tab) {
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+function editGoal(type) {
+  const current = type==='week' ? WEEKLY_GOAL : MONTHLY_GOAL;
+  const val = prompt(`Nouvel objectif ${type==='week'?'hebdo':'mensuel'} (pts) :`, current);
+  if (!val || isNaN(parseInt(val)) || parseInt(val)<1) return;
+  if (type==='week') { WEEKLY_GOAL=parseInt(val); localStorage.setItem('rf_goal_week',val); }
+  else { MONTHLY_GOAL=parseInt(val); localStorage.setItem('rf_goal_month',val); }
+  renderStats();
+}
 async function checkNotifications() {
   if (!cache.myLogs.length) return;
   const lastTs = Math.max(...cache.myLogs.map(l=>l.ts));
@@ -994,6 +1015,16 @@ function renderStats() {
   const pct=Math.min(100,Math.round(totalPts/WEEKLY_GOAL*100));
   document.getElementById('week-progress-bar').style.width=pct+'%';
   document.getElementById('week-pct').textContent=pct+'%';
+  document.getElementById('week-goal-display').textContent=WEEKLY_GOAL+' pts ✎';
+  // Mois
+  const now=new Date(); const monthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthLogs=cache.myLogs.filter(l=>new Date(l.ts).getFullYear()+'-'+String(new Date(l.ts).getMonth()+1).padStart(2,'0')===monthKey);
+  const monthPts=calcPts(monthLogs);
+  document.getElementById('month-total-pts').textContent=monthPts+' pts';
+  const mpct=Math.min(100,Math.round(monthPts/MONTHLY_GOAL*100));
+  document.getElementById('month-progress-bar').style.width=mpct+'%';
+  document.getElementById('month-pct').textContent=mpct+'%';
+  document.getElementById('month-goal-display').textContent=MONTHLY_GOAL+' pts ✎';
   const byExo={};
   weekLogs.forEach(l=>{byExo[l.exoId]=(byExo[l.exoId]||0)+l.reps;});
   const sorted=Object.entries(byExo).sort((a,b)=>{
