@@ -361,13 +361,15 @@ body.light {
           </div>
           <div class="form-row">
             <label class="form-label">Durée</label>
-            <select class="select" id="defi-duration">
-              <option value="1">1 jour</option>
-              <option value="3">3 jours</option>
-              <option value="7" selected>1 semaine</option>
-              <option value="14">2 semaines</option>
-              <option value="30">1 mois</option>
-            </select>
+            <div style="display:flex;gap:8px">
+              <input class="input" type="number" id="defi-duration-val" value="1" min="1" style="width:80px;text-align:center"/>
+              <select class="select" id="defi-duration-unit" style="flex:1">
+                <option value="1">Jour(s)</option>
+                <option value="7">Semaine(s)</option>
+                <option value="30">Mois</option>
+                <option value="365">Année(s)</option>
+              </select>
+            </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:4px">
             <button class="btn btn-ghost btn-sm" onclick="toggleCreateDefi()">Annuler</button>
@@ -1088,7 +1090,7 @@ async function createDefi(){
   const type=document.getElementById('defi-type').value;
   const target=parseInt(document.getElementById('defi-target').value);
   if (!target||target<1) return;
-  const days=parseInt(document.getElementById('defi-duration').value);
+  const days=parseInt(document.getElementById('defi-duration-val').value||1)*parseInt(document.getElementById('defi-duration-unit').value);
   const end=new Date(); end.setDate(end.getDate()+days); end.setHours(23,59,59,999);
   const base={type,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true};
   if (type==='reps'){
