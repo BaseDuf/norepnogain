@@ -329,6 +329,7 @@ body.light {
           <div class="progress-track"><div class="progress-fill" id="month-progress-bar" style="width:0%;background:var(--orange)"></div></div>
           <div class="progress-labels"><span id="month-pct">0%</span><span>mois en cours</span></div>
         </div>
+        <div id="goal-suggestion" style="display:none;margin-top:14px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;line-height:1.5"></div>
       </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -863,6 +864,11 @@ function switchTab(tab) {
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+function adoptGoal(val) {
+  WEEKLY_GOAL=val; localStorage.setItem('rf_goal_week',val);
+  document.getElementById('goal-suggestion').style.display='none';
+  renderStats();
+}
 function editGoal(type) {
   const current = type==='week' ? WEEKLY_GOAL : MONTHLY_GOAL;
   const val = prompt(`Nouvel objectif ${type==='week'?'hebdo':'mensuel'} (pts) :`, current);
@@ -1025,6 +1031,21 @@ function renderStats() {
   document.getElementById('month-progress-bar').style.width=mpct+'%';
   document.getElementById('month-pct').textContent=mpct+'%';
   document.getElementById('month-goal-display').textContent=MONTHLY_GOAL+' pts ✎';
+  // Suggestion d'objectif
+  const last4weeks=[]; for(let i=4;i>=1;i--) last4weeks.push(getWeekKey(Date.now()-i*7*86400000));
+  const weekPcts=last4weeks.map(wk=>{const pts=calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===wk));return pts/WEEKLY_GOAL;});
+  const sgEl=document.getElementById('goal-suggestion'); sgEl.style.display='none';
+  const consecutiveHits=weekPcts.filter(p=>p>=1).length===4||weekPcts.slice(-3).every(p=>p>=1);
+  const consecutiveMisses=weekPcts.slice(-3).every(p=>p<0.7);
+  if (consecutiveHits){
+    const suggested=Math.round(WEEKLY_GOAL*1.2/50)*50;
+    sgEl.style.display='';
+    sgEl.innerHTML=`💪 Tu atteins ton objectif semaine après semaine ! On passe à <strong>${suggested} pts</strong> ?<br><button onclick="adoptGoal(${suggested})" style="margin-top:8px;background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Adopter</button> <button onclick="document.getElementById('goal-suggestion').style.display='none'" style="margin-top:8px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Pas maintenant</button>`;
+  } else if (consecutiveMisses){
+    const suggested=Math.round(WEEKLY_GOAL*0.8/50)*50||50;
+    sgEl.style.display='';
+    sgEl.innerHTML=`📉 L'objectif semble difficile à atteindre. On essaie <strong>${suggested} pts</strong> cette semaine ?<br><button onclick="adoptGoal(${suggested})" style="margin-top:8px;background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Adopter</button> <button onclick="document.getElementById('goal-suggestion').style.display='none'" style="margin-top:8px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Pas maintenant</button>`;
+  }
   const byExo={};
   weekLogs.forEach(l=>{byExo[l.exoId]=(byExo[l.exoId]||0)+l.reps;});
   const sorted=Object.entries(byExo).sort((a,b)=>{
