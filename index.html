@@ -192,6 +192,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 .empty-state{text-align:center;padding:40px 24px;color:var(--muted);font-size:15px;line-height:1.6}
 .zoom-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 11px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.defi-exo-item{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.defi-exo-item:last-child{border-bottom:none}
+.defi-exo-item:active,.defi-exo-item.selected{background:rgba(200,241,53,0.1);color:var(--accent)}
+.defi-chip{background:rgba(200,241,53,0.15);border:1px solid rgba(200,241,53,0.3);color:var(--accent);border-radius:20px;padding:4px 10px;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer}
 .zoom-btn.active{background:rgba(200,241,53,0.15);border-color:rgba(200,241,53,0.4);color:var(--accent)}
 .friend-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .friend-row:last-child{border-bottom:none}
@@ -349,11 +353,16 @@ body.light {
           </div>
           <div class="form-row" id="defi-exo-row">
             <label class="form-label">Exercice</label>
-            <select class="select" id="defi-exo"></select>
+            <input class="input" id="defi-exo-search" placeholder="Chercher…" autocomplete="off" oninput="filterDefiExos()" style="margin-bottom:6px"/>
+            <div id="defi-exo-list" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg3)"></div>
+            <input type="hidden" id="defi-exo"/>
           </div>
           <div class="form-row" id="defi-multi-row" style="display:none">
-            <label class="form-label">Exercices (maintiens Cmd/Ctrl pour en sélectionner plusieurs)</label>
-            <select class="select" id="defi-multi-exos" multiple style="height:130px"></select>
+            <label class="form-label">Exercices</label>
+            <input class="input" id="defi-multi-search" placeholder="Chercher…" autocomplete="off" oninput="filterDefiMulti()" style="margin-bottom:6px"/>
+            <div id="defi-multi-list" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg3)"></div>
+            <div id="defi-multi-selected" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+            <input type="hidden" id="defi-multi-exos"/>
           </div>
           <div class="form-row">
             <label class="form-label" id="defi-target-label">Objectif</label>
@@ -1069,15 +1078,52 @@ function openExoDetail(exo){
 }
 
 // ─── DÉFIS ────────────────────────────────────────────────────────────────────
+let defiMultiSelected=[];
 function toggleCreateDefi(){
   const f=document.getElementById('create-defi-form'); f.classList.toggle('open');
   if (f.classList.contains('open')){
-    const opts=EXERCISES.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
-    document.getElementById('defi-exo').innerHTML=opts;
-    document.getElementById('defi-multi-exos').innerHTML=opts;
+    defiMultiSelected=[];
+    document.getElementById('defi-exo').value='';
+    document.getElementById('defi-exo-search').value='';
+    document.getElementById('defi-multi-search').value='';
     document.getElementById('defi-type').value='reps';
     onDefiTypeChange();
+    filterDefiExos();
+    filterDefiMulti();
   }
+}
+function filterDefiExos(){
+  const q=(document.getElementById('defi-exo-search').value||'').toLowerCase();
+  const list=document.getElementById('defi-exo-list');
+  const selected=document.getElementById('defi-exo').value;
+  const filtered=EXERCISES.filter(e=>!q||e.name.toLowerCase().includes(q));
+  list.innerHTML=filtered.map(e=>`<div class="defi-exo-item${selected===e.id?' selected':''}" onclick="selectDefiExo('${e.id}')">${e.name}</div>`).join('');
+}
+function selectDefiExo(id){
+  document.getElementById('defi-exo').value=id;
+  const exo=EXERCISES.find(e=>e.id===id);
+  document.getElementById('defi-exo-search').value=exo?exo.name:'';
+  document.getElementById('defi-exo-list').innerHTML='';
+}
+function filterDefiMulti(){
+  const q=(document.getElementById('defi-multi-search').value||'').toLowerCase();
+  const list=document.getElementById('defi-multi-list');
+  const filtered=EXERCISES.filter(e=>(!q||e.name.toLowerCase().includes(q))&&!defiMultiSelected.includes(e.id));
+  list.innerHTML=filtered.map(e=>`<div class="defi-exo-item" onclick="addDefiMulti('${e.id}')">${e.name}</div>`).join('');
+}
+function addDefiMulti(id){
+  if (defiMultiSelected.includes(id)) return;
+  defiMultiSelected.push(id);
+  document.getElementById('defi-multi-search').value='';
+  renderDefiMultiChips(); filterDefiMulti();
+}
+function removeDefiMulti(id){
+  defiMultiSelected=defiMultiSelected.filter(x=>x!==id);
+  renderDefiMultiChips(); filterDefiMulti();
+}
+function renderDefiMultiChips(){
+  const el=document.getElementById('defi-multi-selected');
+  el.innerHTML=defiMultiSelected.map(id=>{const exo=EXERCISES.find(e=>e.id===id);return`<div class="defi-chip">${exo?exo.name:id}<span onclick="removeDefiMulti('${id}')">×</span></div>`;}).join('');
 }
 function onDefiTypeChange(){
   const type=document.getElementById('defi-type').value;
@@ -1100,11 +1146,9 @@ async function createDefi(){
   } else if (type==='points'){
     await fsAddDefi({...base,title:'Points totaux'});
   } else if (type==='multi'){
-    const sel=document.getElementById('defi-multi-exos');
-    const exoIds=Array.from(sel.selectedOptions).map(o=>o.value);
-    if (!exoIds.length) return;
-    const names=exoIds.map(id=>EXERCISES.find(e=>e.id===id)?.name).filter(Boolean);
-    await fsAddDefi({...base,exoIds,title:names.join(' + ')});
+    if (!defiMultiSelected.length) return;
+    const names=defiMultiSelected.map(id=>EXERCISES.find(e=>e.id===id)?.name).filter(Boolean);
+    await fsAddDefi({...base,exoIds:defiMultiSelected,title:names.join(' + ')});
   }
   toggleCreateDefi(); document.getElementById('defi-target').value='';
   renderDefis(); updateBadges();
