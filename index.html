@@ -639,6 +639,18 @@ body.light {
   </div>
 </div>
 
+<!-- REMOVE FAV CONFIRM MODAL -->
+<div class="modal-overlay hidden" id="remove-fav-modal" onclick="closeRemoveFavModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">Retirer des favoris ?</div>
+    <div class="modal-sub" id="remove-fav-name" style="margin-bottom:20px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeRemoveFavModal()">Annuler</button>
+      <button class="btn" style="flex:1;background:var(--red);color:#fff;border:none" onclick="confirmRemoveFav()">Retirer</button>
+    </div>
+  </div>
+</div>
+
 <!-- REPS DIRECT INPUT MODAL -->
 <div class="modal-overlay hidden" id="reps-input-modal" onclick="closeRepsInput(event)">
   <div class="modal-sheet" style="text-align:center">
@@ -1126,11 +1138,34 @@ function addExoBtn(exo,weekLogs,favs,el){
   btn.onclick=()=>openLog(exo); el.appendChild(btn);
 }
 
+let _removeFavId = null;
 async function toggleFav(id,e) {
   e.stopPropagation();
   const favs=cache.favorites; const idx=favs.indexOf(id);
-  if (idx>=0) favs.splice(idx,1); else favs.push(id);
+  if (idx>=0) {
+    const exo=DEFAULT_EXO.find(x=>x.id===id);
+    _removeFavId=id;
+    document.getElementById('remove-fav-name').textContent=exo?exo.name:id;
+    document.getElementById('remove-fav-modal').classList.remove('hidden');
+  } else {
+    favs.push(id);
+    cache.favorites=[...favs];
+    renderExoList();
+    await fsSaveFavs(currentUser,cache.favorites);
+  }
+}
+function closeRemoveFavModal(e) {
+  if(e&&e.target!==document.getElementById('remove-fav-modal'))return;
+  document.getElementById('remove-fav-modal').classList.add('hidden');
+  _removeFavId=null;
+}
+async function confirmRemoveFav() {
+  if(!_removeFavId)return;
+  const favs=cache.favorites; const idx=favs.indexOf(_removeFavId);
+  if(idx>=0) favs.splice(idx,1);
   cache.favorites=[...favs];
+  document.getElementById('remove-fav-modal').classList.add('hidden');
+  _removeFavId=null;
   renderExoList();
   await fsSaveFavs(currentUser,cache.favorites);
 }
