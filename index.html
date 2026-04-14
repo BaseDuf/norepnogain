@@ -1129,7 +1129,9 @@ function openLog(exo) {
     currentReps=exo.defaultVal||(exo.unit==='sec'?30:10);
   }
   document.getElementById('reps-val').textContent=exo.unit==='sec'?fmtDuration(currentReps):currentReps;
-  document.getElementById('reps-unit-label').style.display=exo.unit==='sec'?'block':'none';
+  const unitLabel=document.getElementById('reps-unit-label');
+  unitLabel.style.display='block';
+  unitLabel.textContent=exo.unit==='sec'?'secondes':'reps';
   // Poids
   currentWeight=0;
   const weightRow=document.getElementById('weight-row');
