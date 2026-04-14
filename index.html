@@ -150,6 +150,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .defi-score{font-size:13px;font-family:'DM Mono',monospace;color:var(--muted);flex-shrink:0;width:50px;text-align:right}
 .create-defi-form{display:none}
 .create-defi-form.open{display:block}
+.defi-mode-card{flex:1;background:var(--bg3);border:2px solid var(--border);border-radius:var(--radius);padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s}
+.defi-mode-card:active{transform:scale(.97)}
+.defi-mode-card.selected{border-color:var(--accent);background:rgba(200,241,53,0.08)}
+.defi-mode-card .mode-icon{font-size:24px;margin-bottom:6px}
+.defi-mode-card .mode-label{font-size:14px;font-weight:500;color:var(--text)}
+.defi-mode-card.selected .mode-label{color:var(--accent)}
+.defi-type-pill{flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;padding:9px 6px;color:var(--muted);font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;text-align:center}
+.defi-type-pill.selected{background:var(--accent);color:#0f0f0f;border-color:var(--accent)}
 .form-label{font-size:13px;color:var(--muted);margin-bottom:6px;display:block}
 .form-row{margin-bottom:14px}
 .select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;appearance:none}
@@ -260,25 +268,74 @@ body.light {
 
 <!-- LOGIN -->
 <div id="screen-login" class="screen hidden">
-  <div class="login-wrap">
+  <div class="login-wrap" style="justify-content:flex-start;padding-top:48px">
     <div class="login-logo">REP/</div>
     <div class="login-tagline">Tracker tes reps.<br>2 clics. Pas de bullshit.</div>
-    <div id="signup-field" style="margin-bottom:12px;display:none">
-      <input class="input" type="text" id="login-pseudo" placeholder="Ton pseudo" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+
+    <!-- Toggle Connexion / Inscription -->
+    <div id="auth-tabs" style="display:flex;background:var(--bg3);border-radius:var(--radius-sm);padding:4px;margin-bottom:24px">
+      <button id="tab-signin" onclick="switchAuthView('signin')" style="flex:1;padding:9px;border:none;border-radius:8px;background:var(--accent);color:#0f0f0f;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s">Connexion</button>
+      <button id="tab-signup" onclick="switchAuthView('signup')" style="flex:1;padding:9px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s">Inscription</button>
     </div>
-    <div style="margin-bottom:12px">
-      <input class="input" type="email" id="login-email" placeholder="Email" autocomplete="email"/>
+
+    <!-- VUE : CONNEXION -->
+    <div id="view-signin">
+      <div style="margin-bottom:12px">
+        <input class="input" type="email" id="signin-email" placeholder="Adresse email" autocomplete="email"/>
+      </div>
+      <div style="margin-bottom:6px">
+        <input class="input" type="password" id="signin-password" placeholder="Mot de passe" autocomplete="current-password"/>
+      </div>
+      <div style="text-align:right;margin-bottom:20px">
+        <span onclick="switchAuthView('forgot')" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Mot de passe oublié ?</span>
+      </div>
+      <div id="signin-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
+      <button class="btn btn-primary" onclick="doSignin()" style="margin-bottom:10px">Se connecter →</button>
+      <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:12px">Pas encore de compte ? <span onclick="switchAuthView('signup')" style="color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Créer un compte</span></p>
     </div>
-    <div style="margin-bottom:8px">
-      <input class="input" type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password"/>
+
+    <!-- VUE : INSCRIPTION -->
+    <div id="view-signup" style="display:none">
+      <div style="margin-bottom:12px">
+        <input class="input" type="text" id="signup-pseudo" placeholder="Ton pseudo" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <input class="input" type="email" id="signup-email" placeholder="Adresse email" autocomplete="email"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <input class="input" type="password" id="signup-password" placeholder="Mot de passe (6 caractères min)" autocomplete="new-password"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <input class="input" type="password" id="signup-password2" placeholder="Confirmer le mot de passe" autocomplete="new-password"/>
+      </div>
+      <div style="height:1px;background:var(--border);margin-bottom:16px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input class="input" type="number" id="signup-bodyweight" placeholder="Poids (kg)" min="30" max="250" style="flex:1"/>
+        <input class="input" type="number" id="signup-height" placeholder="Taille (cm)" min="100" max="250" style="flex:1"/>
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Sexe</div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="defi-type-pill" id="sex-btn-h" onclick="selectSex('H')" style="flex:1">Homme</button>
+          <button type="button" class="defi-type-pill" id="sex-btn-f" onclick="selectSex('F')" style="flex:1">Femme</button>
+        </div>
+      </div>
+      <div id="signup-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
+      <button class="btn btn-primary" onclick="doSignup()" style="margin-bottom:10px">Créer mon compte →</button>
+      <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:12px">Déjà un compte ? <span onclick="switchAuthView('signin')" style="color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Se connecter</span></p>
     </div>
-    <div id="forgot-link" style="text-align:right;margin-bottom:12px">
-      <span onclick="sendPasswordReset()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Mot de passe oublié ?</span>
+
+    <!-- VUE : MOT DE PASSE OUBLIÉ -->
+    <div id="view-forgot" style="display:none">
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">Entre ton email et on t'envoie un lien pour réinitialiser ton mot de passe.</p>
+      <div style="margin-bottom:12px">
+        <input class="input" type="email" id="forgot-email" placeholder="Adresse email" autocomplete="email"/>
+      </div>
+      <div id="forgot-msg" style="font-size:13px;margin-bottom:12px;display:none"></div>
+      <button class="btn btn-primary" onclick="doForgot()" style="margin-bottom:16px">Envoyer le lien →</button>
+      <button class="btn btn-ghost" onclick="switchAuthView('signin')">← Retour à la connexion</button>
     </div>
-    <div id="forgot-msg" style="font-size:13px;margin-bottom:10px;display:none"></div>
-    <div id="login-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="btn btn-primary" id="login-submit-btn" style="margin-bottom:10px" onclick="doLogin()">Se connecter →</button>
-    <button class="btn btn-ghost" id="login-toggle-btn" onclick="toggleSignup()">Créer un compte</button>
+
   </div>
 </div>
 
@@ -291,7 +348,6 @@ body.light {
     </div>
     <div style="display:flex;gap:8px">
       <button class="icon-btn" onclick="showScreen('screen-settings','screen-main')" title="Paramètres">⚙</button>
-      <button class="icon-btn" onclick="doLogout()">↩</button>
     </div>
   </div>
   <div class="scroll">
@@ -316,18 +372,6 @@ body.light {
         <div class="progress-wrap">
           <div class="progress-track"><div class="progress-fill" id="week-progress-bar" style="width:0%"></div></div>
           <div class="progress-labels"><span id="week-pct">0%</span><span>semaine en cours</span></div>
-        </div>
-        <div style="height:12px"></div>
-        <div class="week-header">
-          <div><div class="week-pts" id="month-total-pts" style="font-size:24px">0 pts</div><div class="week-label">ce mois</div></div>
-          <div style="text-align:right">
-            <div style="font-size:13px;color:var(--muted)">objectif mensuel</div>
-            <div style="font-size:18px;font-weight:500;font-family:'DM Mono',monospace;cursor:pointer" id="month-goal-display" onclick="editGoal('month')" title="Modifier">2000 pts ✎</div>
-          </div>
-        </div>
-        <div class="progress-wrap">
-          <div class="progress-track"><div class="progress-fill" id="month-progress-bar" style="width:0%;background:var(--orange)"></div></div>
-          <div class="progress-labels"><span id="month-pct">0%</span><span>mois en cours</span></div>
         </div>
         <div id="goal-suggestion" style="display:none;margin-top:16px"></div>
       </div>
@@ -356,20 +400,36 @@ body.light {
           <button class="btn btn-primary btn-sm" onclick="toggleCreateDefi()">+ Nouveau</button>
         </div>
         <div class="create-defi-form" id="create-defi-form">
+          <!-- Étape 1 : mode -->
           <div class="form-row">
-            <label class="form-label">Type de défi</label>
-            <select class="select" id="defi-type" onchange="onDefiTypeChange()">
-              <option value="reps">Reps sur un exercice</option>
-              <option value="points">Points totaux</option>
-              <option value="multi">Reps sur plusieurs exercices</option>
-            </select>
+            <div style="display:flex;gap:10px">
+              <div class="defi-mode-card" id="defi-mode-ami" onclick="selectDefiMode('ami')">
+                <div class="mode-icon">👥</div>
+                <div class="mode-label">Défie ton ami</div>
+              </div>
+              <div class="defi-mode-card" id="defi-mode-perso" onclick="selectDefiMode('perso')">
+                <div class="mode-icon">🎯</div>
+                <div class="mode-label">Défi personnel</div>
+              </div>
+            </div>
           </div>
-          <div class="form-row" id="defi-exo-row">
+          <!-- Étape 2 : type d'objectif -->
+          <div class="form-row" id="defi-type-row" style="display:none">
+            <label class="form-label">Type d'objectif</label>
+            <div style="display:flex;gap:8px">
+              <button class="defi-type-pill" id="pill-reps" onclick="selectDefiType('reps')">Reps</button>
+              <button class="defi-type-pill" id="pill-points" onclick="selectDefiType('points')">Points</button>
+              <button class="defi-type-pill" id="pill-multi" onclick="selectDefiType('multi')">Multi-exo</button>
+            </div>
+          </div>
+          <!-- Exercice (reps) -->
+          <div class="form-row" id="defi-exo-row" style="display:none">
             <label class="form-label">Exercice</label>
             <input class="input" id="defi-exo-search" placeholder="Chercher…" autocomplete="off" oninput="filterDefiExos()" style="margin-bottom:6px"/>
             <div id="defi-exo-list" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg3)"></div>
             <input type="hidden" id="defi-exo"/>
           </div>
+          <!-- Exercices (multi) -->
           <div class="form-row" id="defi-multi-row" style="display:none">
             <label class="form-label">Exercices</label>
             <input class="input" id="defi-multi-search" placeholder="Chercher…" autocomplete="off" oninput="filterDefiMulti()" style="margin-bottom:6px"/>
@@ -377,24 +437,28 @@ body.light {
             <div id="defi-multi-selected" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
             <input type="hidden" id="defi-multi-exos"/>
           </div>
-          <div class="form-row">
-            <label class="form-label" id="defi-target-label">Objectif</label>
-            <input class="input" type="number" id="defi-target" placeholder="ex: 200" min="1"/>
-          </div>
-          <div class="form-row">
-            <label class="form-label">Durée</label>
-            <div style="display:flex;gap:8px">
-              <input class="input" type="number" id="defi-duration-val" value="1" min="1" style="width:80px;text-align:center"/>
-              <select class="select" id="defi-duration-unit" style="flex:1">
-                <option value="1">Jour(s)</option>
-                <option value="7">Semaine(s)</option>
-                <option value="30">Mois</option>
-                <option value="365">Année(s)</option>
-              </select>
+          <!-- Étape 3 : objectif + durée -->
+          <div id="defi-goal-rows" style="display:none">
+            <div class="form-row">
+              <label class="form-label" id="defi-target-label">Objectif</label>
+              <input class="input" type="number" id="defi-target" placeholder="ex: 200" min="1"/>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Durée</label>
+              <div style="display:flex;gap:8px">
+                <input class="input" type="number" id="defi-duration-val" value="1" min="1" style="width:80px;text-align:center"/>
+                <select class="select" id="defi-duration-unit" style="flex:1">
+                  <option value="1">Jour(s)</option>
+                  <option value="7">Semaine(s)</option>
+                  <option value="30">Mois</option>
+                  <option value="365">Année(s)</option>
+                </select>
+              </div>
             </div>
           </div>
+          <!-- Amis (mode ami seulement) -->
           <div class="form-row" id="defi-friends-row" style="display:none">
-            <label class="form-label">Défier des amis (optionnel)</label>
+            <label class="form-label">Défier des amis</label>
             <div id="defi-friends-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:4px">
@@ -475,6 +539,17 @@ body.light {
       <div class="reps-val" id="reps-val">10</div>
       <button class="reps-btn" onclick="changeReps(1)">+</button>
     </div>
+    <div id="weight-row" style="display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+      <button class="reps-btn" style="width:40px;height:40px;font-size:18px" onclick="changeWeight(-2.5)">−</button>
+      <div style="text-align:center;min-width:90px">
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace" id="weight-val">0</div>
+        <div style="font-size:12px;color:var(--muted)">kg ajoutés</div>
+      </div>
+      <button class="reps-btn" style="width:40px;height:40px;font-size:18px" onclick="changeWeight(2.5)">+</button>
+    </div>
+    <div id="weight-toggle-row" style="display:none;margin-bottom:16px;text-align:center">
+      <button id="weight-toggle-btn" onclick="toggleWeightRow()" style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-size:13px;font-family:'DM Sans',sans-serif;padding:6px 16px;cursor:pointer">+ Ajouter du poids</button>
+    </div>
     <button class="btn btn-primary" onclick="saveLog()" style="margin-bottom:12px">Valider ✓</button>
     <button class="btn btn-ghost" onclick="goBackFromLog()">Annuler</button>
     <div class="success-flash" id="success-flash"></div>
@@ -524,20 +599,6 @@ body.light {
             <button class="btn btn-primary btn-sm" onclick="changePassword()">Valider</button>
           </div>
           <div id="settings-pwd-msg" style="font-size:13px;display:none;margin-top:6px"></div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:14px">
-          <label class="form-label" style="color:var(--red)">Supprimer le compte</label>
-          <div id="delete-confirm-step1">
-            <button class="btn btn-sm" style="background:rgba(255,85,85,0.15);color:var(--red);border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="showDeleteConfirm()">Supprimer mon compte…</button>
-          </div>
-          <div id="delete-confirm-step2" style="display:none">
-            <p style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Cette action est irréversible. Tape <strong style="color:var(--red)">SUPPRIMER</strong> pour confirmer.</p>
-            <div class="settings-input-row">
-              <input class="input" type="text" id="delete-confirm-input" placeholder="SUPPRIMER" autocomplete="off"/>
-              <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap" onclick="deleteAccount()">Supprimer</button>
-            </div>
-            <div id="settings-delete-msg" style="font-size:13px;display:none;margin-top:6px"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -620,36 +681,36 @@ const docR = (n,i) => db.collection(n).doc(i);
 
 // ─── EXERCISES ────────────────────────────────────────────────────────────────
 const DEFAULT_EXO = [
-  {id:'squats',       name:'Squats',                   pts:0.5, unit:'reps',cat:'Jambes'},
-  {id:'fentes',       name:'Fentes',                   pts:1,   unit:'reps',cat:'Jambes'},
-  {id:'glute-bridge', name:'Pont fessier',             pts:1,   unit:'reps',cat:'Jambes'},
-  {id:'step-ups',     name:'Step-ups',                 pts:1,   unit:'reps',cat:'Jambes'},
-  {id:'jump-squats',  name:'Squats sautés',            pts:2,   unit:'reps',cat:'Jambes'},
-  {id:'jump-lunges',  name:'Fentes sautées',           pts:2,   unit:'reps',cat:'Jambes'},
-  {id:'bulgarians',   name:'Fentes bulgares',          pts:2,   unit:'reps',cat:'Jambes'},
-  {id:'single-leg-dl',name:'Soulevé unipodal',         pts:2,   unit:'reps',cat:'Jambes'},
-  {id:'cossack',      name:'Cossack squats',           pts:3,   unit:'reps',cat:'Jambes'},
-  {id:'pistols',      name:'Pistol squats',            pts:5,   unit:'reps',cat:'Jambes'},
+  {id:'squats',       name:'Squats',                   pts:0.5, unit:'reps',cat:'Jambes', weightRef:80},
+  {id:'fentes',       name:'Fentes',                   pts:1,   unit:'reps',cat:'Jambes', weightRef:50},
+  {id:'glute-bridge', name:'Pont fessier',             pts:1,   unit:'reps',cat:'Jambes', weightRef:40},
+  {id:'step-ups',     name:'Step-ups',                 pts:1,   unit:'reps',cat:'Jambes', weightRef:50},
+  {id:'jump-squats',  name:'Squats sautés',            pts:2,   unit:'reps',cat:'Jambes', weightRef:25},
+  {id:'jump-lunges',  name:'Fentes sautées',           pts:2,   unit:'reps',cat:'Jambes', weightRef:25},
+  {id:'bulgarians',   name:'Fentes bulgares',          pts:2,   unit:'reps',cat:'Jambes', weightRef:50},
+  {id:'single-leg-dl',name:'Soulevé unipodal',         pts:2,   unit:'reps',cat:'Jambes', weightRef:40},
+  {id:'cossack',      name:'Cossack squats',           pts:3,   unit:'reps',cat:'Jambes', weightRef:40},
+  {id:'pistols',      name:'Pistol squats',            pts:5,   unit:'reps',cat:'Jambes', weightRef:20},
   {id:'nordic',       name:'Nordic curls',             pts:8,   unit:'reps',cat:'Jambes'},
   {id:'incline-pu',   name:'Pompes inclinées',         pts:0.5, unit:'reps',cat:'Pousser'},
-  {id:'pompes',       name:'Pompes',                   pts:1,   unit:'reps',cat:'Pousser'},
-  {id:'diamond-pu',   name:'Pompes diamant',           pts:2,   unit:'reps',cat:'Pousser'},
-  {id:'decline-pu',   name:'Pompes déclinées',         pts:2,   unit:'reps',cat:'Pousser'},
+  {id:'pompes',       name:'Pompes',                   pts:1,   unit:'reps',cat:'Pousser', weightRef:50},
+  {id:'diamond-pu',   name:'Pompes diamant',           pts:2,   unit:'reps',cat:'Pousser', weightRef:35},
+  {id:'decline-pu',   name:'Pompes déclinées',         pts:2,   unit:'reps',cat:'Pousser', weightRef:50},
   {id:'pike-pu',      name:'Pike push-ups',            pts:2,   unit:'reps',cat:'Pousser'},
   {id:'hindu-pu',     name:'Hindu push-ups',           pts:2,   unit:'reps',cat:'Pousser'},
-  {id:'archer-pu',    name:'Archer push-ups',          pts:3,   unit:'reps',cat:'Pousser'},
-  {id:'bench-dips',   name:'Dips sur banc',            pts:2,   unit:'reps',cat:'Pousser'},
-  {id:'dips',         name:'Dips',                     pts:4,   unit:'reps',cat:'Pousser'},
+  {id:'archer-pu',    name:'Archer push-ups',          pts:3,   unit:'reps',cat:'Pousser', weightRef:35},
+  {id:'bench-dips',   name:'Dips sur banc',            pts:2,   unit:'reps',cat:'Pousser', weightRef:40},
+  {id:'dips',         name:'Dips',                     pts:4,   unit:'reps',cat:'Pousser', weightRef:30},
   {id:'hspu',         name:'Pompes en équilibre (mur)',pts:8,   unit:'reps',cat:'Pousser'},
   {id:'scap-pu',      name:'Scapular pull-ups',        pts:1,   unit:'reps',cat:'Tirer'},
-  {id:'inverted-rows',name:'Rowing australien',        pts:2,   unit:'reps',cat:'Tirer'},
-  {id:'chin-ups',     name:'Chin-ups',                 pts:2,   unit:'reps',cat:'Tirer'},
-  {id:'tractions',    name:'Tractions',                pts:3,   unit:'reps',cat:'Tirer'},
-  {id:'neutral-pu',   name:'Tractions prise neutre',   pts:3,   unit:'reps',cat:'Tirer'},
-  {id:'wide-pu',      name:'Tractions prise large',    pts:4,   unit:'reps',cat:'Tirer'},
+  {id:'inverted-rows',name:'Rowing australien',        pts:2,   unit:'reps',cat:'Tirer', weightRef:25},
+  {id:'chin-ups',     name:'Chin-ups',                 pts:2,   unit:'reps',cat:'Tirer', weightRef:20},
+  {id:'tractions',    name:'Tractions',                pts:3,   unit:'reps',cat:'Tirer', weightRef:20},
+  {id:'neutral-pu',   name:'Tractions prise neutre',   pts:3,   unit:'reps',cat:'Tirer', weightRef:20},
+  {id:'wide-pu',      name:'Tractions prise large',    pts:4,   unit:'reps',cat:'Tirer', weightRef:20},
   {id:'toe-to-bar',   name:'Toes to bar',              pts:4,   unit:'reps',cat:'Tirer'},
-  {id:'archer-pull',  name:'Archer pull-ups',          pts:6,   unit:'reps',cat:'Tirer'},
-  {id:'muscle-up',    name:'Muscle-ups',               pts:40,  unit:'reps',cat:'Tirer'},
+  {id:'archer-pull',  name:'Archer pull-ups',          pts:6,   unit:'reps',cat:'Tirer', weightRef:15},
+  {id:'muscle-up',    name:'Muscle-ups',               pts:40,  unit:'reps',cat:'Tirer', weightRef:10},
   {id:'russian-twist',name:'Russian twists',           pts:1,   unit:'reps',cat:'Core'},
   {id:'mountain',     name:'Mountain climbers',        pts:1,   unit:'reps',cat:'Core'},
   {id:'knee-raises',  name:'Relevés de genoux',        pts:2,   unit:'reps',cat:'Core'},
@@ -670,16 +731,23 @@ const DEFAULT_EXO = [
   {id:'planche-tuck', name:'Planche (tuck)',           pts:2,   unit:'sec', cat:'Statique'},
   {id:'planche',      name:'Planche',                  pts:5,   unit:'sec', cat:'Statique'},
   {id:'human-flag',   name:'Human flag',               pts:3,   unit:'sec', cat:'Statique'},
+  {id:'stretch-gen',  name:'Étirements (général)',      pts:0.05,unit:'sec', cat:'Étirements', defaultVal:120},
+  {id:'yoga',         name:'Yoga',                     pts:0.08,unit:'sec', cat:'Étirements', defaultVal:300},
+  {id:'mobilite',     name:'Mobilité articulaire',      pts:0.07,unit:'sec', cat:'Étirements', defaultVal:120},
+  {id:'pigeon',       name:'Pigeon',                   pts:0.07,unit:'sec', cat:'Étirements', defaultVal:60},
+  {id:'hip-flexor',   name:'Étirement fléchisseurs',   pts:0.05,unit:'sec', cat:'Étirements', defaultVal:60},
+  {id:'hamstring',    name:'Étirement ischio-jambiers', pts:0.05,unit:'sec', cat:'Étirements', defaultVal:60},
+  {id:'shoulder-str', name:'Étirement épaules/dos',    pts:0.05,unit:'sec', cat:'Étirements', defaultVal:60},
+  {id:'foam-roll',    name:'Foam rolling',             pts:0.06,unit:'sec', cat:'Étirements', defaultVal:180},
 ];
 let WEEKLY_GOAL = parseInt(localStorage.getItem('rf_goal_week')||'500');
-let MONTHLY_GOAL = parseInt(localStorage.getItem('rf_goal_month')||'2000');
 let EXERCISES = DEFAULT_EXO.map(e=>({...e}));
 
 // ─── CACHE (mémoire locale, rafraîchi depuis Firestore) ───────────────────────
 let cache = { myLogs:[], weekLogs:[], favorites:[], adminUser:null, friendships:[] };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let currentUser = null, currentExo = null, currentReps = 10;
+let currentUser = null, currentExo = null, currentReps = 10, currentWeight = 0;
 let weeklyChart = null, detailChart = null;
 let chartZoom = 'week';
 
@@ -691,9 +759,21 @@ function getWeekKey(ts) {
 function getThisWeekKey() { return getWeekKey(Date.now()); }
 function cap(s) { return s ? s[0].toUpperCase()+s.slice(1) : ''; }
 function fmtPts(p) { return Number.isInteger(p)?p:(p===Math.round(p*10)/10?p.toFixed(1):p.toFixed(2)); }
+function fmtDuration(secs) {
+  if (secs < 60) return secs+'s';
+  const m=Math.floor(secs/60), s=secs%60;
+  return s ? m+'min '+s+'s' : m+'min';
+}
+function isStretch(exo) { return exo && exo.cat==='Étirements'; }
+function repStep(exo) { return exo && exo.unit==='sec' ? (isStretch(exo)?30:5) : 1; }
+function weightMultiplier(log, exo) {
+  if (!log.weight || !exo || !exo.weightRef) return 1;
+  return 1 + log.weight / exo.weightRef;
+}
 function calcPts(logs) {
   return Math.round(logs.reduce((s,l)=>{
-    const e=EXERCISES.find(x=>x.id===l.exoId); return s+(e?l.reps*e.pts:0);
+    const e=EXERCISES.find(x=>x.id===l.exoId);
+    return s+(e?l.reps*e.pts*weightMultiplier(l,e):0);
   },0));
 }
 function formatDate(d, short) {
@@ -726,10 +806,12 @@ async function fsEnsureUser(username) {
   const ref = docR('users', username);
   const snap = await ref.get();
   if (!snap.exists) {
+    // Créé via signup avec profil complet, ici fallback minimal
     await ref.set({ username, createdAt: Date.now() });
     const adminSnap = await docR('config','admin').get();
     if (!adminSnap.exists) await docR('config','admin').set({ username });
   }
+  return snap.exists ? snap.data() : null;
 }
 async function fsGetAdmin() {
   const snap = await docR('config','admin').get();
@@ -743,8 +825,10 @@ async function fsGetWeekLogs(weekKey) {
   const snap = await col('logs').where('weekKey','==',weekKey).get();
   return snap.docs.map(d=>d.data());
 }
-async function fsAddLog(username, exoId, reps, ts) {
-  const ref = await col('logs').add({ username, exoId, reps, ts, weekKey: getWeekKey(ts) });
+async function fsAddLog(username, exoId, reps, ts, weight) {
+  const data = { username, exoId, reps, ts, weekKey: getWeekKey(ts) };
+  if (weight) data.weight = weight;
+  const ref = await col('logs').add(data);
   return ref.id;
 }
 async function fsDeleteLog(logId) { await col('logs').doc(logId).delete(); }
@@ -795,47 +879,94 @@ async function fsAddDefi(data) { await col('defis').add(data); }
 async function fsUpdateDefi(id, updates) { await docR('defis',id).update(updates); }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
-let isSignupMode = false;
-function toggleSignup() {
-  isSignupMode = !isSignupMode;
-  document.getElementById('signup-field').style.display = isSignupMode ? '' : 'none';
-  document.getElementById('forgot-link').style.display = isSignupMode ? 'none' : '';
-  document.getElementById('forgot-msg').style.display = 'none';
-  document.getElementById('login-password').setAttribute('autocomplete', isSignupMode ? 'new-password' : 'current-password');
-  document.getElementById('login-submit-btn').textContent = isSignupMode ? 'Créer mon compte →' : 'Se connecter →';
-  document.getElementById('login-toggle-btn').textContent = isSignupMode ? "J'ai déjà un compte" : 'Créer un compte';
-  document.getElementById('login-error').style.display = 'none';
+let selectedSex = null;
+const AUTH_MSGS = {
+  'auth/user-not-found':      'Aucun compte avec cet email',
+  'auth/wrong-password':      'Mot de passe incorrect',
+  'auth/invalid-credential':  'Email ou mot de passe incorrect',
+  'auth/email-already-in-use':'Cet email est déjà utilisé',
+  'auth/weak-password':       'Mot de passe trop court (6 caractères min)',
+  'auth/invalid-email':       'Email invalide',
+};
+
+function switchAuthView(view) {
+  ['signin','signup','forgot'].forEach(v => {
+    document.getElementById('view-'+v).style.display = v===view ? '' : 'none';
+  });
+  // Tabs visibles seulement pour signin/signup
+  const tabs = document.getElementById('auth-tabs');
+  tabs.style.display = view==='forgot' ? 'none' : 'flex';
+  if (view !== 'forgot') {
+    document.getElementById('tab-signin').style.background = view==='signin' ? 'var(--accent)' : 'transparent';
+    document.getElementById('tab-signin').style.color      = view==='signin' ? '#0f0f0f' : 'var(--muted)';
+    document.getElementById('tab-signup').style.background = view==='signup' ? 'var(--accent)' : 'transparent';
+    document.getElementById('tab-signup').style.color      = view==='signup' ? '#0f0f0f' : 'var(--muted)';
+  }
+  // Reset erreurs
+  ['signin-error','signup-error','forgot-msg'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
 }
 
-async function doLogin() {
-  const email    = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const pseudo   = document.getElementById('login-pseudo').value.trim().toLowerCase();
-  const errEl    = document.getElementById('login-error');
+function selectSex(sex) {
+  selectedSex = sex;
+  document.getElementById('sex-btn-h').classList.toggle('selected', sex==='H');
+  document.getElementById('sex-btn-f').classList.toggle('selected', sex==='F');
+}
+
+async function doSignin() {
+  const email    = document.getElementById('signin-email').value.trim();
+  const password = document.getElementById('signin-password').value;
+  const errEl    = document.getElementById('signin-error');
   errEl.style.display = 'none';
-  if (!email || !password) return;
-  if (isSignupMode && !pseudo) { errEl.textContent = 'Entre ton pseudo'; errEl.style.display = ''; return; }
-  showLoading(true, isSignupMode ? 'Création du compte…' : 'Connexion…');
+  if (!email || !password) { errEl.textContent='Remplis tous les champs'; errEl.style.display=''; return; }
+  showLoading(true, 'Connexion…');
   try {
-    if (isSignupMode) {
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await cred.user.updateProfile({ displayName: pseudo });
-    } else {
-      await auth.signInWithEmailAndPassword(email, password);
-    }
-    // onAuthStateChanged prend le relais
+    await auth.signInWithEmailAndPassword(email, password);
   } catch(e) {
     showLoading(false);
-    const msgs = {
-      'auth/user-not-found':     'Aucun compte avec cet email',
-      'auth/wrong-password':     'Mot de passe incorrect',
-      'auth/invalid-credential': 'Email ou mot de passe incorrect',
-      'auth/email-already-in-use':'Cet email est déjà utilisé',
-      'auth/weak-password':      'Mot de passe trop court (6 caractères min)',
-      'auth/invalid-email':      'Email invalide',
-    };
-    errEl.textContent = msgs[e.code] || 'Erreur : ' + e.message;
+    errEl.textContent = AUTH_MSGS[e.code] || 'Erreur : ' + e.message;
     errEl.style.display = '';
+  }
+}
+
+async function doSignup() {
+  const pseudo  = document.getElementById('signup-pseudo').value.trim().toLowerCase();
+  const email   = document.getElementById('signup-email').value.trim();
+  const pwd     = document.getElementById('signup-password').value;
+  const pwd2    = document.getElementById('signup-password2').value;
+  const bw      = parseInt(document.getElementById('signup-bodyweight').value);
+  const ht      = parseInt(document.getElementById('signup-height').value);
+  const errEl   = document.getElementById('signup-error');
+  errEl.style.display = 'none';
+  if (!pseudo)                           { errEl.textContent='Entre ton pseudo'; errEl.style.display=''; return; }
+  if (!/^[a-z0-9_]{2,20}$/.test(pseudo)){ errEl.textContent='Pseudo : 2-20 caractères, lettres/chiffres/_'; errEl.style.display=''; return; }
+  if (!email)                            { errEl.textContent='Entre ton email'; errEl.style.display=''; return; }
+  if (!pwd || pwd.length < 6)            { errEl.textContent='Mot de passe : 6 caractères minimum'; errEl.style.display=''; return; }
+  if (pwd !== pwd2)                      { errEl.textContent='Les mots de passe ne correspondent pas'; errEl.style.display=''; return; }
+  if (!bw || bw<30 || bw>250)            { errEl.textContent='Entre ton poids (30–250 kg)'; errEl.style.display=''; return; }
+  if (!ht || ht<100 || ht>250)           { errEl.textContent='Entre ta taille (100–250 cm)'; errEl.style.display=''; return; }
+  if (!selectedSex)                      { errEl.textContent='Sélectionne ton sexe'; errEl.style.display=''; return; }
+  showLoading(true, 'Création du compte…');
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pwd);
+    await cred.user.updateProfile({ displayName: pseudo });
+    await docR('users', pseudo).set({ username: pseudo, createdAt: Date.now(), bodyWeight: bw, height: ht, sex: selectedSex });
+  } catch(e) {
+    showLoading(false);
+    errEl.textContent = AUTH_MSGS[e.code] || 'Erreur : ' + e.message;
+    errEl.style.display = '';
+  }
+}
+
+async function doForgot() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const msgEl = document.getElementById('forgot-msg');
+  msgEl.style.display = 'none';
+  if (!email) { msgEl.style.color='var(--red)'; msgEl.textContent="Entre ton email d'abord."; msgEl.style.display=''; return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    msgEl.style.color='var(--accent)'; msgEl.textContent='Email de réinitialisation envoyé ! Vérifie ta boîte mail.'; msgEl.style.display='';
+  } catch(e) {
+    msgEl.style.color='var(--red)'; msgEl.textContent= AUTH_MSGS[e.code] || 'Erreur : '+e.message; msgEl.style.display='';
   }
 }
 
@@ -866,15 +997,18 @@ function switchTab(tab) {
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 function adoptGoal(val) {
   WEEKLY_GOAL=val; localStorage.setItem('rf_goal_week',val);
+  localStorage.setItem('rf_goal_suggestion_ts', Date.now());
   document.getElementById('goal-suggestion').style.display='none';
   renderStats();
 }
+function dismissGoalSuggestion() {
+  localStorage.setItem('rf_goal_suggestion_ts', Date.now());
+  document.getElementById('goal-suggestion').style.display='none';
+}
 function editGoal(type) {
-  const current = type==='week' ? WEEKLY_GOAL : MONTHLY_GOAL;
-  const val = prompt(`Nouvel objectif ${type==='week'?'hebdo':'mensuel'} (pts) :`, current);
+  const val = prompt(`Nouvel objectif hebdo (pts) :`, WEEKLY_GOAL);
   if (!val || isNaN(parseInt(val)) || parseInt(val)<1) return;
-  if (type==='week') { WEEKLY_GOAL=parseInt(val); localStorage.setItem('rf_goal_week',val); }
-  else { MONTHLY_GOAL=parseInt(val); localStorage.setItem('rf_goal_month',val); }
+  WEEKLY_GOAL=parseInt(val); localStorage.setItem('rf_goal_week',val);
   renderStats();
 }
 async function checkNotifications() {
@@ -965,19 +1099,43 @@ function openLog(exo) {
   const logs=cache.myLogs.filter(l=>l.exoId===exo.id).sort((a,b)=>b.ts-a.ts);
   const last=logs[0];
   document.getElementById('log-exo-name').textContent=exo.name;
-  document.getElementById('log-exo-pts').textContent=fmtPts(exo.pts)+' pt / '+(exo.unit==='sec'?'seconde':'rep');
+  const ptsLabel = isStretch(exo) ? fmtPts(Math.round(exo.pts*60*10)/10)+' pt / min' : fmtPts(exo.pts)+' pt / '+(exo.unit==='sec'?'sec':'rep');
+  document.getElementById('log-exo-pts').textContent=ptsLabel;
   document.getElementById('success-flash').style.display='none';
   if (last){
     document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${last.reps} ${exo.unit==='sec'?'sec':'reps'}</strong> — ${formatDate(new Date(last.ts))}`;
     currentReps=last.reps;
   } else {
     document.getElementById('last-log-info').textContent='Premier log pour cet exercice';
-    currentReps=exo.unit==='sec'?30:10;
+    currentReps=exo.defaultVal||(exo.unit==='sec'?30:10);
   }
-  document.getElementById('reps-val').textContent=currentReps;
+  document.getElementById('reps-val').textContent=exo.unit==='sec'?fmtDuration(currentReps):currentReps;
+  // Poids
+  currentWeight=0;
+  const weightRow=document.getElementById('weight-row');
+  const weightToggleRow=document.getElementById('weight-toggle-row');
+  const weightToggleBtn=document.getElementById('weight-toggle-btn');
+  document.getElementById('weight-val').textContent='0';
+  weightRow.style.display='none';
+  if (exo.weightRef) {
+    weightToggleRow.style.display='';
+    weightToggleBtn.textContent='+ Ajouter du poids';
+    weightToggleBtn.style.color='var(--muted)';
+    weightToggleBtn.style.borderColor='var(--border)';
+  } else {
+    weightToggleRow.style.display='none';
+  }
   renderLogHistory(exo,logs);
   showScreen('screen-log','screen-main');
 }
+function toggleWeightRow(){
+  const row=document.getElementById('weight-row');
+  const btn=document.getElementById('weight-toggle-btn');
+  const visible=row.style.display!=='none';
+  if (visible){ row.style.display='none'; currentWeight=0; document.getElementById('weight-val').textContent='0'; btn.textContent='+ Ajouter du poids'; btn.style.color='var(--muted)'; btn.style.borderColor='var(--border)'; }
+  else { row.style.display='flex'; btn.textContent='Retirer le poids'; btn.style.color='var(--accent)'; btn.style.borderColor='var(--accent)'; }
+}
+function changeWeight(delta){ currentWeight=Math.max(0,Math.round((currentWeight+delta)*10)/10); document.getElementById('weight-val').textContent=currentWeight; }
 function renderLogHistory(exo,logs){
   const el=document.getElementById('log-history'); el.innerHTML='';
   if (!logs.length){el.innerHTML='<div class="empty-state" style="padding:20px 0">Aucun log encore</div>';return;}
@@ -985,26 +1143,35 @@ function renderLogHistory(exo,logs){
     const d=document.createElement('div');d.className='hist-item';
     const lid=l._id||'';
     const btns=lid?`<button class="hist-icon-btn" onclick="openEditLog('${lid}',${l.reps})">✏</button><button class="hist-icon-btn del" onclick="deleteLog('${lid}')">🗑</button>`:'';
-    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${l.reps} ${exo.unit==='sec'?'sec':'reps'} · ${Math.round(l.reps*exo.pts)} pts</span><div class="hist-actions">${btns}</div>`;
+    const wStr=l.weight?` · ${l.weight}kg`:'';
+    const pts=Math.round(l.reps*exo.pts*weightMultiplier(l,exo));
+    const repsStr=exo.unit==='sec'?fmtDuration(l.reps):`${l.reps} reps`;
+    d.innerHTML=`<span class="hist-date">${formatDate(new Date(l.ts))}</span><span class="hist-reps">${repsStr}${wStr} · ${pts} pts</span><div class="hist-actions">${btns}</div>`;
     el.appendChild(d);
   });
 }
-function changeReps(delta){currentReps=Math.max(1,currentReps+delta);document.getElementById('reps-val').textContent=currentReps;}
+function changeReps(delta){
+  const step=repStep(currentExo);
+  currentReps=Math.max(step,currentReps+delta*step);
+  document.getElementById('reps-val').textContent=currentExo&&currentExo.unit==='sec'?fmtDuration(currentReps):currentReps;
+}
 
 async function saveLog() {
   const ts=Date.now();
   const entry={username:currentUser,exoId:currentExo.id,reps:currentReps,ts,weekKey:getWeekKey(ts)};
+  if (currentWeight>0) entry.weight=currentWeight;
   // Optimistic update
   cache.myLogs.push(entry);
   if (getWeekKey(ts)===getThisWeekKey()) cache.weekLogs.push(entry);
-  const pts=Math.round(currentReps*currentExo.pts);
+  const pts=Math.round(currentReps*currentExo.pts*weightMultiplier(entry,currentExo));
   const flash=document.getElementById('success-flash');
+  const weightStr=currentWeight>0?` (${currentWeight}kg)`:'';
   flash.textContent=`✓ +${pts} pts — bien joué !`; flash.style.display='block';
   setTimeout(()=>flash.style.display='none',2000);
-  document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${currentReps} ${currentExo.unit==='sec'?'sec':'reps'}</strong> — à l'instant`;
+  document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${currentReps} ${currentExo.unit==='sec'?'sec':'reps'}${weightStr}</strong> — à l'instant`;
   renderLogHistory(currentExo, cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts));
   // Write to Firestore and capture ID
-  const newId = await fsAddLog(currentUser,currentExo.id,currentReps,ts);
+  const newId = await fsAddLog(currentUser,currentExo.id,currentReps,ts,currentWeight||null);
   // Attach _id to cache entry
   const cached = cache.myLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
   if (cached) cached._id = newId;
@@ -1027,52 +1194,75 @@ function renderStats() {
   const monthLogs=cache.myLogs.filter(l=>new Date(l.ts).getFullYear()+'-'+String(new Date(l.ts).getMonth()+1).padStart(2,'0')===monthKey);
   const monthPts=calcPts(monthLogs);
   document.getElementById('month-total-pts').textContent=monthPts+' pts';
-  const mpct=Math.min(100,Math.round(monthPts/MONTHLY_GOAL*100));
-  document.getElementById('month-progress-bar').style.width=mpct+'%';
-  document.getElementById('month-pct').textContent=mpct+'%';
-  document.getElementById('month-goal-display').textContent=MONTHLY_GOAL+' pts ✎';
   // Suggestion d'objectif
-  const last4weeks=[]; for(let i=4;i>=1;i--) last4weeks.push(getWeekKey(Date.now()-i*7*86400000));
-  const weekPcts=last4weeks.map(wk=>{const pts=calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===wk));return pts/WEEKLY_GOAL;});
   const sgEl=document.getElementById('goal-suggestion'); sgEl.style.display='none';
-  const consecutiveHits=weekPcts.filter(p=>p>=1).length===4||weekPcts.slice(-3).every(p=>p>=1);
-  const consecutiveMisses=weekPcts.slice(-3).every(p=>p<0.7);
-  if (consecutiveHits){
-    const suggested=Math.round(WEEKLY_GOAL*1.2/50)*50;
-    sgEl.style.display='';
-    sgEl.innerHTML=`
-      <div style="background:linear-gradient(135deg,rgba(200,241,53,0.12),rgba(200,241,53,0.04));border:1px solid rgba(200,241,53,0.3);border-radius:var(--radius);padding:16px">
-        <div style="font-size:22px;margin-bottom:6px">💪</div>
-        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">Tu écrases ton objectif !</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">3 semaines de suite à 100%+. Prêt à monter la barre ?</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
-          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Actuel</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--muted)">${WEEKLY_GOAL}</div></div>
-          <div style="color:var(--accent);font-size:18px">→</div>
-          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Suggéré</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent)">${suggested}</div></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="adoptGoal(${suggested})" class="btn btn-primary btn-sm" style="flex:1">Adopter ✓</button>
-          <button onclick="document.getElementById('goal-suggestion').style.display='none'" class="btn btn-ghost btn-sm">Pas maintenant</button>
-        </div>
-      </div>`;
-  } else if (consecutiveMisses){
-    const suggested=Math.round(WEEKLY_GOAL*0.8/50)*50||50;
-    sgEl.style.display='';
-    sgEl.innerHTML=`
-      <div style="background:rgba(255,149,0,0.06);border:1px solid rgba(255,149,0,0.25);border-radius:var(--radius);padding:16px">
-        <div style="font-size:22px;margin-bottom:6px">📉</div>
-        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">Objectif difficile à atteindre</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">3 semaines à moins de 70%. Un objectif plus accessible pour reprendre confiance ?</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
-          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Actuel</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--muted)">${WEEKLY_GOAL}</div></div>
-          <div style="color:var(--orange);font-size:18px">→</div>
-          <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Suggéré</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--orange)">${suggested}</div></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="adoptGoal(${suggested})" class="btn btn-primary btn-sm" style="flex:1">Adopter ✓</button>
-          <button onclick="document.getElementById('goal-suggestion').style.display='none'" class="btn btn-ghost btn-sm">Pas maintenant</button>
-        </div>
-      </div>`;
+  const lastSuggestionTs=parseInt(localStorage.getItem('rf_goal_suggestion_ts')||'0');
+  const currentWk=getWeekKey(Date.now());
+  const allPastWeeks=[...new Set(cache.myLogs.map(l=>getWeekKey(l.ts)))].filter(w=>w!==currentWk).sort();
+  const isFirstSuggestion=lastSuggestionTs===0;
+  // Cooldown : 1 semaine après la 1ère suggestion, 2 semaines ensuite
+  const cooldownMs=isFirstSuggestion ? 7*86400000 : 14*86400000;
+  const cooldownOk=Date.now()-lastSuggestionTs > cooldownMs;
+  if (cooldownOk && allPastWeeks.length >= 1) {
+    const last4=[]; for(let i=4;i>=1;i--) { const wk=getWeekKey(Date.now()-i*7*86400000); if(wk!==currentWk) last4.push(wk); }
+    const last4pcts=last4.map(wk=>{const pts=calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===wk));return pts/WEEKLY_GOAL;});
+    const last2=last4pcts.slice(-2);
+    const weights=[1,1.5,2,2.5]; const totalW=last4pcts.reduce((s,p,i)=>s+p*weights[i],0)/weights.slice(0,last4pcts.length).reduce((s,w)=>s+w,0);
+    let suggested=null, isUp=false, msgTitle='', msgBody='', accentColor='var(--accent)';
+    const firstWeekPct=last4pcts[last4pcts.length-1];
+    if (allPastWeeks.length===1) {
+      // 1ère semaine : suggestion basée sur cette seule semaine
+      if (firstWeekPct>=1.1) {
+        isUp=true;
+        let pct=firstWeekPct>1.5?0.3:firstWeekPct>1.3?0.2:0.1;
+        suggested=Math.round(WEEKLY_GOAL*(1+pct)/50)*50;
+        msgTitle='Super première semaine !';
+        msgBody=`Tu as atteint ${Math.round(firstWeekPct*100)}% de ton objectif. On monte la barre ?`;
+        accentColor='var(--accent)';
+      } else if (firstWeekPct<0.85) {
+        isUp=false; accentColor='var(--orange)';
+        let pct=firstWeekPct<0.5?0.25:firstWeekPct<0.7?0.20:0.10;
+        suggested=Math.max(50, Math.round(WEEKLY_GOAL*(1-pct)/50)*50);
+        msgTitle='Objectif à ajuster ?';
+        msgBody=`Tu as atteint ${Math.round(firstWeekPct*100)}% la première semaine. Un objectif plus accessible pour prendre de l'élan ?`;
+      }
+    } else {
+      // Semaines suivantes : 2 consécutives requises
+      if (last2.length===2 && last2.every(p=>p>=1.1)) {
+        isUp=true;
+        const avgOvershoot=last2.reduce((s,p)=>s+p,0)/2;
+        let pct=avgOvershoot>1.5?0.3:avgOvershoot>1.3?0.2:0.1;
+        suggested=Math.round(WEEKLY_GOAL*(1+pct)/50)*50;
+        msgTitle='Tu dépasses ton objectif !';
+        msgBody=`2 semaines de suite à ${Math.round(avgOvershoot*100)}% en moyenne. Prêt à monter la barre ?`;
+        accentColor='var(--accent)';
+      } else if (last2.length===2 && last2.every(p=>p<0.85)) {
+        isUp=false; accentColor='var(--orange)';
+        let pct=totalW<0.5?0.25:totalW<0.7?0.20:0.10;
+        suggested=Math.max(50, Math.round(WEEKLY_GOAL*(1-pct)/50)*50);
+        msgTitle='Objectif difficile à atteindre';
+        const missCount=last4pcts.filter(p=>p<0.85).length;
+        msgBody=`${missCount} semaine${missCount>1?'s':''} en dessous de 85% sur les 4 dernières. Un objectif plus accessible ?`;
+      }
+    }
+    if (suggested && suggested!==WEEKLY_GOAL) {
+      sgEl.style.display='';
+      sgEl.innerHTML=`
+        <div style="background:${isUp?'linear-gradient(135deg,rgba(200,241,53,0.12),rgba(200,241,53,0.04))':'rgba(255,149,0,0.06)'};border:1px solid ${isUp?'rgba(200,241,53,0.3)':'rgba(255,149,0,0.25)'};border-radius:var(--radius);padding:16px">
+          <div style="font-size:22px;margin-bottom:6px">${isUp?'💪':'📉'}</div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">${msgTitle}</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">${msgBody}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
+            <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Actuel</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--muted)">${WEEKLY_GOAL}</div></div>
+            <div style="color:${accentColor};font-size:18px">→</div>
+            <div style="text-align:center;flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Suggéré</div><div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:${accentColor}">${suggested}</div></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="adoptGoal(${suggested})" class="btn btn-primary btn-sm" style="flex:1">Adopter ✓</button>
+            <button onclick="dismissGoalSuggestion()" class="btn btn-ghost btn-sm">Pas maintenant</button>
+          </div>
+        </div>`;
+    }
   }
   const byExo={};
   weekLogs.forEach(l=>{byExo[l.exoId]=(byExo[l.exoId]||0)+l.reps;});
@@ -1163,27 +1353,53 @@ function openExoDetail(exo){
 
 // ─── DÉFIS ────────────────────────────────────────────────────────────────────
 let defiMultiSelected=[], defiInvited=[];
+let defiMode=null, defiType=null;
 function toggleCreateDefi(){
   const f=document.getElementById('create-defi-form'); f.classList.toggle('open');
   if (f.classList.contains('open')){
-    defiMultiSelected=[]; defiInvited=[];
+    defiMultiSelected=[]; defiInvited=[]; defiMode=null; defiType=null;
     document.getElementById('defi-exo').value='';
     document.getElementById('defi-exo-search').value='';
     document.getElementById('defi-multi-search').value='';
-    document.getElementById('defi-type').value='reps';
-    onDefiTypeChange();
-    filterDefiExos();
-    filterDefiMulti();
-    // Populate friends chips
-    const friends=cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
-    const row=document.getElementById('defi-friends-row');
-    if (friends.length){
-      row.style.display='';
-      document.getElementById('defi-friends-chips').innerHTML=friends.map(name=>`
-        <div class="defi-chip" id="chip-${name}" onclick="toggleDefiInvite('${name}')" style="opacity:0.5">${cap(name)}</div>
-      `).join('');
-    } else row.style.display='none';
+    // Reset mode cards
+    document.getElementById('defi-mode-ami').classList.remove('selected');
+    document.getElementById('defi-mode-perso').classList.remove('selected');
+    // Reset type pills
+    ['reps','points','multi'].forEach(t=>document.getElementById('pill-'+t).classList.remove('selected'));
+    // Hide all steps
+    document.getElementById('defi-type-row').style.display='none';
+    document.getElementById('defi-exo-row').style.display='none';
+    document.getElementById('defi-multi-row').style.display='none';
+    document.getElementById('defi-goal-rows').style.display='none';
+    document.getElementById('defi-friends-row').style.display='none';
   }
+}
+function selectDefiMode(mode){
+  defiMode=mode;
+  document.getElementById('defi-mode-ami').classList.toggle('selected', mode==='ami');
+  document.getElementById('defi-mode-perso').classList.toggle('selected', mode==='perso');
+  document.getElementById('defi-type-row').style.display='';
+  // Amis : préparer chips si mode ami
+  const friends=cache.friendships.filter(f=>f.status==='accepted').map(f=>f.users.find(u=>u!==currentUser));
+  const row=document.getElementById('defi-friends-row');
+  if (mode==='ami' && friends.length){
+    row.style.display='';
+    document.getElementById('defi-friends-chips').innerHTML=friends.map(name=>`
+      <div class="defi-chip" id="chip-${name}" onclick="toggleDefiInvite('${name}')" style="opacity:0.5">${cap(name)}</div>
+    `).join('');
+  } else row.style.display='none';
+  // Reset type si on change de mode
+  if (defiType) selectDefiType(defiType);
+}
+function selectDefiType(type){
+  defiType=type;
+  ['reps','points','multi'].forEach(t=>document.getElementById('pill-'+t).classList.toggle('selected',t===type));
+  document.getElementById('defi-exo-row').style.display=type==='reps'?'':'none';
+  document.getElementById('defi-multi-row').style.display=type==='multi'?'':'none';
+  document.getElementById('defi-goal-rows').style.display='';
+  const labels={reps:'Objectif (reps sur la semaine)',points:'Objectif en points',multi:'Objectif combiné (reps total)'};
+  document.getElementById('defi-target-label').textContent=labels[type];
+  if (type==='reps'||type==='multi'){ filterDefiExos(); filterDefiMulti(); }
 }
 function toggleDefiInvite(name){
   const chip=document.getElementById('chip-'+name);
@@ -1228,21 +1444,15 @@ function renderDefiMultiChips(){
   const el=document.getElementById('defi-multi-selected');
   el.innerHTML=defiMultiSelected.map(id=>{const exo=EXERCISES.find(e=>e.id===id);return`<div class="defi-chip">${exo?exo.name:id}<span onclick="removeDefiMulti('${id}')">×</span></div>`;}).join('');
 }
-function onDefiTypeChange(){
-  const type=document.getElementById('defi-type').value;
-  document.getElementById('defi-exo-row').style.display=type==='reps'?'':'none';
-  document.getElementById('defi-multi-row').style.display=type==='multi'?'':'none';
-  const labels={reps:'Objectif (reps sur la semaine)',points:'Objectif en points sur la semaine',multi:'Objectif combiné (reps total)'};
-  document.getElementById('defi-target-label').textContent=labels[type];
-}
 async function createDefi(){
-  const type=document.getElementById('defi-type').value;
+  if (!defiMode||!defiType) return;
+  const type=defiType;
   const target=parseInt(document.getElementById('defi-target').value);
   if (!target||target<1) return;
   const days=parseInt(document.getElementById('defi-duration-val').value||1)*parseInt(document.getElementById('defi-duration-unit').value);
   const end=new Date(); end.setDate(end.getDate()+days); end.setHours(23,59,59,999);
-  const participants=defiInvited.length?[currentUser,...defiInvited]:[];
-  const base={type,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true,participants};
+  const participants=defiMode==='ami'&&defiInvited.length?[currentUser,...defiInvited]:[];
+  const base={type,mode:defiMode,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true,participants};
   if (type==='reps'){
     const exoId=document.getElementById('defi-exo').value;
     const exo=EXERCISES.find(e=>e.id===exoId); if (!exo) return;
@@ -1467,17 +1677,6 @@ async function respondProposal(id, status){
 }
 
 // ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
-async function sendPasswordReset() {
-  const email = document.getElementById('login-email').value.trim();
-  const msgEl = document.getElementById('forgot-msg');
-  if (!email) { msgEl.style.color='var(--red)'; msgEl.textContent='Entre ton email d\'abord.'; msgEl.style.display=''; return; }
-  try {
-    await auth.sendPasswordResetEmail(email);
-    msgEl.style.color='var(--accent)'; msgEl.textContent='Email de réinitialisation envoyé !'; msgEl.style.display='';
-  } catch(e) {
-    msgEl.style.color='var(--red)'; msgEl.textContent='Erreur : '+e.message; msgEl.style.display='';
-  }
-}
 
 // ─── LOG DELETE / EDIT ────────────────────────────────────────────────────────
 async function deleteLog(logId) {
@@ -1625,7 +1824,8 @@ auth.onAuthStateChanged(async (user) => {
     showLoading(true,'Chargement…');
     try {
       currentUser = user.displayName || user.email.split('@')[0];
-      await fsEnsureUser(currentUser);
+      const userProfile = await fsEnsureUser(currentUser);
+      cache.userProfile  = userProfile || {};
       cache.adminUser    = await fsGetAdmin();
       cache.favorites    = await fsGetFavs(currentUser);
       cache.myLogs       = await fsGetMyLogs(currentUser);
@@ -1638,17 +1838,19 @@ auth.onAuthStateChanged(async (user) => {
   } else {
     showLoading(false);
     // Reset formulaire
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
-    document.getElementById('login-pseudo').value = '';
-    document.getElementById('login-error').style.display = 'none';
-    if (isSignupMode) toggleSignup();
+    ['signin-email','signin-password','signup-pseudo','signup-email','signup-password','signup-password2','signup-bodyweight','signup-height','forgot-email'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    selectedSex = null;
+    document.getElementById('sex-btn-h').classList.remove('selected');
+    document.getElementById('sex-btn-f').classList.remove('selected');
+    switchAuthView('signin');
     showScreen('screen-login',null);
   }
 });
 
-document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('signin-email').addEventListener('keydown',e=>{if(e.key==='Enter')doSignin();});
+document.getElementById('signin-password').addEventListener('keydown',e=>{if(e.key==='Enter')doSignin();});
+document.getElementById('signup-password2').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup();});
+document.getElementById('forgot-email').addEventListener('keydown',e=>{if(e.key==='Enter')doForgot();});
 
 // Apply saved theme on load
 applyTheme();
