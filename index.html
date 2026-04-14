@@ -538,7 +538,10 @@ body.light {
       <button class="reps-btn" id="reps-btn-minus"
         onmousedown="startRepHold(-1)" onmouseup="stopRepHold()" onmouseleave="stopRepHold()"
         ontouchstart="startRepHold(-1)" ontouchend="stopRepHold()" ontouchcancel="stopRepHold()">−</button>
-      <div class="reps-val" id="reps-val" onclick="openRepsInput()" style="cursor:pointer" title="Taper une valeur">10</div>
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="reps-val" id="reps-val" onclick="openRepsInput()" style="cursor:pointer" title="Taper une valeur">10</div>
+        <div id="reps-unit-label" style="font-size:13px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;display:none">secondes</div>
+      </div>
       <button class="reps-btn" id="reps-btn-plus"
         onmousedown="startRepHold(1)" onmouseup="stopRepHold()" onmouseleave="stopRepHold()"
         ontouchstart="startRepHold(1)" ontouchend="stopRepHold()" ontouchcancel="stopRepHold()">+</button>
@@ -1126,6 +1129,7 @@ function openLog(exo) {
     currentReps=exo.defaultVal||(exo.unit==='sec'?30:10);
   }
   document.getElementById('reps-val').textContent=exo.unit==='sec'?fmtDuration(currentReps):currentReps;
+  document.getElementById('reps-unit-label').style.display=exo.unit==='sec'?'block':'none';
   // Poids
   currentWeight=0;
   const weightRow=document.getElementById('weight-row');
