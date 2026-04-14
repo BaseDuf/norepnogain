@@ -109,6 +109,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .last-log{background:var(--bg3);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:24px;font-size:14px;color:var(--muted);text-align:center}
 .last-log strong{color:var(--text)}
 .success-flash{background:rgba(200,241,53,0.1);border:1px solid rgba(200,241,53,0.3);border-radius:var(--radius-sm);padding:12px;text-align:center;font-size:14px;color:var(--accent);margin-top:12px;display:none}
+/* STREAK */
+.streak-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,170,0,0.12);border:1px solid rgba(255,170,0,0.3);border-radius:20px;padding:3px 10px;font-size:13px;font-weight:600;font-family:'DM Mono',monospace;color:#ffaa00;margin-left:8px}
+/* PR FLASH */
+@keyframes pr-pop{0%{transform:scale(0.85);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes pr-glow{0%,100%{box-shadow:0 0 0 0 rgba(200,241,53,0)}50%{box-shadow:0 0 24px 8px rgba(200,241,53,0.28)}}
+.pr-flash{background:rgba(200,241,53,0.1);border:1.5px solid var(--accent);border-radius:var(--radius-sm);padding:14px;text-align:center;font-size:15px;font-weight:700;color:var(--accent);margin-top:12px;display:none;animation:pr-pop .4s ease,pr-glow 1s ease .3s 3}
+/* HEATMAP */
+.heatmap-grid{display:grid;grid-template-columns:repeat(13,1fr);gap:3px;margin-top:8px}
+.heatmap-cell{aspect-ratio:1;border-radius:2px;background:var(--border)}
+.heatmap-cell.l1{background:rgba(200,241,53,0.2)}.heatmap-cell.l2{background:rgba(200,241,53,0.42)}.heatmap-cell.l3{background:rgba(200,241,53,0.68)}.heatmap-cell.l4{background:var(--accent)}
+.heatmap-months{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+/* REST TIMER */
+.rest-timer{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:28px;padding:10px 22px;display:none;align-items:center;gap:14px;z-index:150;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.rest-timer-time{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:var(--accent);min-width:44px;text-align:center}
+.rest-timer-skip{font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .propose-link{text-align:center;margin-top:16px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
 /* STATS */
@@ -362,7 +377,10 @@ body.light {
   <div class="header">
     <div>
       <div class="header-title" id="main-greeting">Salut !</div>
-      <div class="header-sub" id="main-subtitle">Qu'est-ce qu'on fait ?</div>
+      <div style="display:flex;align-items:center">
+        <div class="header-sub" id="main-subtitle">Qu'est-ce qu'on fait ?</div>
+        <span id="streak-badge" class="streak-badge" style="display:none"></span>
+      </div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="icon-btn" onclick="showScreen('screen-settings','screen-main')" title="Paramètres">⚙</button>
@@ -408,6 +426,11 @@ body.light {
       <div class="card">
         <div class="section-title">Par exercice cette semaine <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:12px">(tap → progression)</span></div>
         <div id="exo-stats-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Activité — 13 dernières semaines</div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+        <div class="heatmap-months" id="heatmap-months"></div>
       </div>
     </div>
 
@@ -578,6 +601,7 @@ body.light {
     <button class="btn btn-primary" onclick="saveLog()" style="margin-bottom:12px">Valider ✓</button>
     <button class="btn btn-ghost" onclick="goBackFromLog()">Annuler</button>
     <div class="success-flash" id="success-flash"></div>
+    <div class="pr-flash" id="pr-flash"></div>
     <div class="propose-link" onclick="openProposalModal()">Proposer un ajustement de pondération →</div>
     <div style="margin-top:32px"><div class="section-title">Historique</div><div id="log-history"></div></div>
   </div>
@@ -681,6 +705,14 @@ body.light {
 </div>
 
 <!-- ONBOARDING MODAL -->
+<div class="rest-timer" id="rest-timer">
+  <div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Repos</div>
+    <div class="rest-timer-time" id="rest-timer-time">60s</div>
+  </div>
+  <span class="rest-timer-skip" onclick="stopRestTimer()">Terminer</span>
+</div>
+
 <div id="onboarding-overlay" style="display:none">
   <div class="onb-header">
     <div class="onb-cat-dots" id="onb-cat-dots"></div>
@@ -1036,6 +1068,30 @@ function showMain() {
   updateBadges();
   checkNotifications();
   showOnboarding();
+  updateStreak();
+}
+
+function calcStreak() {
+  const days = new Set(cache.myLogs.map(l => {
+    const d = new Date(l.ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }));
+  const todayDate = new Date();
+  const todayKey = todayDate.getFullYear()+'-'+String(todayDate.getMonth()+1).padStart(2,'0')+'-'+String(todayDate.getDate()).padStart(2,'0');
+  const startOffset = days.has(todayKey) ? 0 : 1;
+  let streak = 0;
+  for (let i = startOffset; i < 365; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (days.has(key)) streak++; else break;
+  }
+  return streak;
+}
+function updateStreak() {
+  const s = calcStreak();
+  const el = document.getElementById('streak-badge');
+  if (s >= 2) { el.textContent = '🔥 '+s+'j'; el.style.display = 'inline-flex'; }
+  else el.style.display = 'none';
 }
 
 function switchTab(tab) {
@@ -1276,25 +1332,62 @@ function submitRepsInput(){
 
 async function saveLog() {
   const ts=Date.now();
+  // PR detection BEFORE pushing to cache
+  const prevLogs=cache.myLogs.filter(l=>l.exoId===currentExo.id);
+  const prevPR=prevLogs.length?Math.max(...prevLogs.map(l=>l.reps)):0;
+  const isPR=prevLogs.length>0&&currentReps>prevPR;
+
   const entry={username:currentUser,exoId:currentExo.id,reps:currentReps,ts,weekKey:getWeekKey(ts)};
   if (currentWeight>0) entry.weight=currentWeight;
-  // Optimistic update
   cache.myLogs.push(entry);
   if (getWeekKey(ts)===getThisWeekKey()) cache.weekLogs.push(entry);
   const pts=Math.round(currentReps*currentExo.pts*weightMultiplier(entry,currentExo));
-  const flash=document.getElementById('success-flash');
   const weightStr=currentWeight>0?` (${currentWeight}kg)`:'';
-  flash.textContent=`✓ +${pts} pts — bien joué !`; flash.style.display='block';
-  setTimeout(()=>flash.style.display='none',2000);
+
+  // Haptic
+  if (navigator.vibrate) navigator.vibrate(isPR?[50,30,120]:50);
+
+  // Flash
+  if (isPR) {
+    const pf=document.getElementById('pr-flash');
+    pf.textContent=`🏆 Nouveau record ! +${pts} pts`;
+    pf.style.display='block'; pf.style.animation='none';
+    requestAnimationFrame(()=>{ pf.style.animation=''; });
+    setTimeout(()=>pf.style.display='none',3000);
+  } else {
+    const flash=document.getElementById('success-flash');
+    flash.textContent=`✓ +${pts} pts — bien joué !`; flash.style.display='block';
+    setTimeout(()=>flash.style.display='none',2000);
+  }
+
+  startRestTimer();
+  updateStreak();
+
   document.getElementById('last-log-info').innerHTML=`Dernier log : <strong>${currentReps} ${currentExo.unit==='sec'?'sec':'reps'}${weightStr}</strong> — à l'instant`;
   renderLogHistory(currentExo, cache.myLogs.filter(l=>l.exoId===currentExo.id).sort((a,b)=>b.ts-a.ts));
-  // Write to Firestore and capture ID
-  const newId = await fsAddLog(currentUser,currentExo.id,currentReps,ts,currentWeight||null);
-  // Attach _id to cache entry
-  const cached = cache.myLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
-  if (cached) cached._id = newId;
-  const cachedW = cache.weekLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
-  if (cachedW) cachedW._id = newId;
+  const newId=await fsAddLog(currentUser,currentExo.id,currentReps,ts,currentWeight||null);
+  const cached=cache.myLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
+  if (cached) cached._id=newId;
+  const cachedW=cache.weekLogs.find(l=>l.ts===ts&&l.exoId===currentExo.id&&!l._id);
+  if (cachedW) cachedW._id=newId;
+}
+
+let _restInterval=null;
+function startRestTimer() {
+  stopRestTimer();
+  let remaining=60;
+  const el=document.getElementById('rest-timer');
+  const timeEl=document.getElementById('rest-timer-time');
+  el.style.display='flex'; timeEl.textContent=remaining+'s';
+  _restInterval=setInterval(()=>{
+    remaining--;
+    timeEl.textContent=remaining+'s';
+    if (remaining<=0) { stopRestTimer(); if(navigator.vibrate) navigator.vibrate([100,50,100]); }
+  },1000);
+}
+function stopRestTimer() {
+  clearInterval(_restInterval); _restInterval=null;
+  document.getElementById('rest-timer').style.display='none';
 }
 function goBackFromLog(){showScreen('screen-main','screen-log');}
 
@@ -1398,6 +1491,36 @@ function renderStats() {
     d.onclick=()=>openExoDetail(exo); listEl.appendChild(d);
   });
   renderChart();
+  renderHeatmap();
+}
+function renderHeatmap() {
+  const grid=document.getElementById('heatmap-grid');
+  const monthsEl=document.getElementById('heatmap-months');
+  if(!grid) return;
+  const dailyPts={};
+  cache.myLogs.forEach(l=>{
+    const key=getDayKey(l.ts);
+    const exo=DEFAULT_EXO.find(e=>e.id===l.exoId);
+    dailyPts[key]=(dailyPts[key]||0)+Math.round(l.reps*(exo?exo.pts:1));
+  });
+  const vals=Object.values(dailyPts);
+  const maxPts=vals.length?Math.max(...vals):1;
+  const cells=[], seenMonths={}, monthLabels=[];
+  const today=new Date();
+  const start=new Date(today); start.setDate(start.getDate()-90);
+  const dow=start.getDay()||7; start.setDate(start.getDate()-dow+1);
+  for(let i=0;i<91;i++){
+    const d=new Date(start); d.setDate(d.getDate()+i);
+    const key=getDayKey(d.getTime());
+    const pts=dailyPts[key]||0;
+    let lvl=0;
+    if(pts>0&&d<=today){const r=pts/maxPts; lvl=r<0.25?1:r<0.5?2:r<0.75?3:4;}
+    cells.push(`<div class="heatmap-cell${lvl?' l'+lvl:''}" title="${key}${pts?' — '+pts+' pts':''}"></div>`);
+    const mKey=d.getMonth();
+    if(!seenMonths[mKey]&&d.getDate()<=7){seenMonths[mKey]=true;monthLabels.push(['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][mKey]);}
+  }
+  grid.innerHTML=cells.join('');
+  monthsEl.innerHTML=monthLabels.map(m=>`<span>${m}</span>`).join('');
 }
 function getDayKey(ts){const d=new Date(ts);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function setChartZoom(zoom){
