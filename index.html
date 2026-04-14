@@ -103,7 +103,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .log-exo-name{font-size:28px;font-weight:600;margin-bottom:4px}
 .log-exo-pts{font-size:14px;color:var(--muted);margin-bottom:8px}
 .reps-counter{display:flex;align-items:center;justify-content:center;gap:24px;margin:16px 0 32px}
-.reps-btn{width:56px;height:56px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);font-size:28px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;transition:all .1s}
+.reps-btn{width:84px;height:84px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);font-size:42px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;transition:all .1s;user-select:none}
 .reps-btn:active{transform:scale(.9)}
 .reps-val{font-size:72px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent);min-width:120px;text-align:center;line-height:1}
 .last-log{background:var(--bg3);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:24px;font-size:14px;color:var(--muted);text-align:center}
@@ -535,9 +535,13 @@ body.light {
     <div class="log-exo-pts" id="log-exo-pts"></div>
     <div class="last-log" id="last-log-info">Aucun log précédent</div>
     <div class="reps-counter">
-      <button class="reps-btn" onclick="changeReps(-1)">−</button>
-      <div class="reps-val" id="reps-val">10</div>
-      <button class="reps-btn" onclick="changeReps(1)">+</button>
+      <button class="reps-btn" id="reps-btn-minus"
+        onmousedown="startRepHold(-1)" onmouseup="stopRepHold()" onmouseleave="stopRepHold()"
+        ontouchstart="startRepHold(-1)" ontouchend="stopRepHold()" ontouchcancel="stopRepHold()">−</button>
+      <div class="reps-val" id="reps-val" onclick="openRepsInput()" style="cursor:pointer" title="Taper une valeur">10</div>
+      <button class="reps-btn" id="reps-btn-plus"
+        onmousedown="startRepHold(1)" onmouseup="stopRepHold()" onmouseleave="stopRepHold()"
+        ontouchstart="startRepHold(1)" ontouchend="stopRepHold()" ontouchcancel="stopRepHold()">+</button>
     </div>
     <div id="weight-row" style="display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
       <button class="reps-btn" style="width:40px;height:40px;font-size:18px" onclick="changeWeight(-2.5)">−</button>
@@ -610,6 +614,18 @@ body.light {
           <button class="toggle-btn" id="theme-toggle" onclick="toggleTheme()"></button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- REPS DIRECT INPUT MODAL -->
+<div class="modal-overlay hidden" id="reps-input-modal" onclick="closeRepsInput(event)">
+  <div class="modal-sheet" style="text-align:center">
+    <div class="modal-title" id="reps-input-title">Nombre de reps</div>
+    <input class="pts-input" type="number" id="reps-direct-input" min="1" style="font-size:32px;text-align:center;width:100%;margin-bottom:20px"/>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeRepsInput()">Annuler</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitRepsInput()">OK</button>
     </div>
   </div>
 </div>
@@ -1154,6 +1170,44 @@ function changeReps(delta){
   const step=repStep(currentExo);
   currentReps=Math.max(step,currentReps+delta*step);
   document.getElementById('reps-val').textContent=currentExo&&currentExo.unit==='sec'?fmtDuration(currentReps):currentReps;
+}
+
+let _repHoldTimer=null, _repHoldInterval=null;
+function startRepHold(delta){
+  changeReps(delta);
+  let speed=300, count=0;
+  _repHoldTimer=setTimeout(function fire(){
+    changeReps(delta);
+    count++;
+    speed=count<5?250:count<15?120:60;
+    _repHoldInterval=setTimeout(fire,speed);
+  },400);
+}
+function stopRepHold(){
+  clearTimeout(_repHoldTimer);
+  clearTimeout(_repHoldInterval);
+  _repHoldTimer=null; _repHoldInterval=null;
+}
+
+function openRepsInput(){
+  const isSec=currentExo&&currentExo.unit==='sec';
+  document.getElementById('reps-input-title').textContent=isSec?'Durée (secondes)':'Nombre de reps';
+  document.getElementById('reps-direct-input').value=currentReps;
+  document.getElementById('reps-input-modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('reps-direct-input').select(),100);
+}
+function closeRepsInput(e){
+  if(e&&e.target!==document.getElementById('reps-input-modal'))return;
+  document.getElementById('reps-input-modal').classList.add('hidden');
+}
+function submitRepsInput(){
+  const v=parseInt(document.getElementById('reps-direct-input').value);
+  const step=repStep(currentExo);
+  if(v&&v>=step){
+    currentReps=v;
+    document.getElementById('reps-val').textContent=currentExo&&currentExo.unit==='sec'?fmtDuration(currentReps):currentReps;
+  }
+  document.getElementById('reps-input-modal').classList.add('hidden');
 }
 
 async function saveLog() {
