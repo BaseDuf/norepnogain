@@ -241,9 +241,27 @@ body.light {
 .defi-card.archived{opacity:0.55;border-style:dashed}
 .defi-archived-title{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px;font-weight:500}
 
-/* ONBOARDING MODAL */
-#onboarding-modal .modal-sheet{text-align:center}
-#onboarding-modal .modal-title{font-size:22px}
+/* ONBOARDING */
+#onboarding-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow:hidden}
+.onb-header{padding:28px 20px 0}
+.onb-cat-dots{display:flex;gap:6px;margin-bottom:16px}
+.onb-cat-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .3s}
+.onb-cat-dot.done{background:var(--accent);opacity:.5}
+.onb-cat-dot.active{width:24px;border-radius:4px;background:var(--accent)}
+.onb-title{font-size:22px;font-weight:700;margin-bottom:4px}
+.onb-cat-name{font-size:15px;color:var(--muted);margin-bottom:16px}
+.onb-grid{flex:1;overflow-y:auto;padding:0 20px 8px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.onb-exo-card{background:var(--bg3);border:2px solid var(--border);border-radius:var(--radius);padding:14px 12px;cursor:pointer;transition:all .15s}
+.onb-exo-card.selected{border-color:var(--accent);background:rgba(200,241,53,0.08)}
+.onb-exo-card.selected .onb-exo-name{color:var(--accent)}
+.onb-exo-name{font-size:14px;font-weight:500;color:var(--text);line-height:1.3}
+.onb-exo-pts{font-size:12px;color:var(--muted);margin-top:4px}
+.onb-footer{padding:12px 20px 36px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.onb-next-btn{width:56px;height:56px;border-radius:50%;background:var(--accent);border:none;font-size:22px;color:#0f0f0f;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s,transform .2s;opacity:0;pointer-events:none;font-family:'DM Sans',sans-serif;font-weight:700}
+.onb-next-btn.visible{opacity:1;pointer-events:all}
+.onb-next-btn.visible:active{transform:scale(.93)}
+.onb-next-btn.last{width:auto;padding:0 32px;border-radius:28px;font-size:15px;height:48px}
+.onb-skip{font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;opacity:.6}
 
 /* LEADERBOARD TOGGLE */
 .lb-toggle{display:flex;gap:4px;margin-bottom:12px}
@@ -651,12 +669,16 @@ body.light {
 </div>
 
 <!-- ONBOARDING MODAL -->
-<div class="modal-overlay hidden" id="onboarding-modal">
-  <div class="modal-sheet" style="text-align:center">
-    <div class="modal-title" style="font-size:22px;margin-bottom:12px">Bienvenue sur No Rep No Gain ! 🏋️</div>
-    <div class="modal-sub" style="margin-bottom:24px">Logge tes reps en 2 clics, fixe des défis avec tes amis, et suis ta progression.</div>
-    <button class="btn btn-primary" onclick="closeOnboarding()">C'est parti !</button>
-    <div style="height:8px"></div>
+<div id="onboarding-overlay" style="display:none">
+  <div class="onb-header">
+    <div class="onb-cat-dots" id="onb-cat-dots"></div>
+    <div class="onb-title">Choisis tes exos préférés</div>
+    <div class="onb-cat-name" id="onb-cat-name"></div>
+  </div>
+  <div class="onb-grid" id="onb-grid"></div>
+  <div class="onb-footer">
+    <button class="onb-next-btn" id="onb-next-btn" onclick="nextOnboardingStep()">↓</button>
+    <span class="onb-skip" onclick="nextOnboardingStep(true)">Passer cette catégorie</span>
   </div>
 </div>
 
@@ -1861,14 +1883,70 @@ function toggleTheme() {
 }
 
 // ─── ONBOARDING ───────────────────────────────────────────────────────────────
+let _onbCatIndex = 0;
+let _onbSelected = new Set();
+
 function showOnboarding() {
-  if (!localStorage.getItem('rf_onboarded')) {
-    document.getElementById('onboarding-modal').classList.remove('hidden');
-  }
+  if (localStorage.getItem('rf_onboarded')) return;
+  _onbCatIndex = 0;
+  _onbSelected = new Set();
+  document.getElementById('onboarding-overlay').style.display = 'flex';
+  renderOnboardingStep();
 }
-function closeOnboarding() {
-  localStorage.setItem('rf_onboarded','1');
-  document.getElementById('onboarding-modal').classList.add('hidden');
+
+function renderOnboardingStep() {
+  const cats = [...new Set(DEFAULT_EXO.map(e => e.cat))];
+  const cat = cats[_onbCatIndex];
+  const exos = DEFAULT_EXO.filter(e => e.cat === cat);
+  const isLast = _onbCatIndex === cats.length - 1;
+
+  // Dots
+  document.getElementById('onb-cat-dots').innerHTML = cats.map((c,i) =>
+    `<div class="onb-cat-dot ${i < _onbCatIndex ? 'done' : i === _onbCatIndex ? 'active' : ''}"></div>`
+  ).join('');
+
+  // Category name
+  document.getElementById('onb-cat-name').textContent = cat;
+
+  // Grid
+  document.getElementById('onb-grid').innerHTML = exos.map(exo =>
+    `<div class="onb-exo-card ${_onbSelected.has(exo.id) ? 'selected' : ''}" onclick="toggleOnbExo('${exo.id}')">
+      <div class="onb-exo-name">${exo.name}</div>
+      <div class="onb-exo-pts">${fmtPts(exo.pts)} pt/${exo.unit==='sec'?'sec':'rep'}</div>
+    </div>`
+  ).join('');
+
+  // Next button
+  const hasSelection = exos.some(e => _onbSelected.has(e.id));
+  const btn = document.getElementById('onb-next-btn');
+  btn.classList.toggle('visible', hasSelection);
+  btn.classList.toggle('last', isLast);
+  btn.textContent = isLast ? 'Commencer' : '↓';
+
+  document.getElementById('onb-grid').scrollTop = 0;
+}
+
+function toggleOnbExo(id) {
+  if (_onbSelected.has(id)) _onbSelected.delete(id);
+  else _onbSelected.add(id);
+  renderOnboardingStep();
+}
+
+async function nextOnboardingStep(skip) {
+  const cats = [...new Set(DEFAULT_EXO.map(e => e.cat))];
+  if (_onbCatIndex < cats.length - 1) {
+    _onbCatIndex++;
+    renderOnboardingStep();
+  } else {
+    const favs = [..._onbSelected];
+    if (favs.length > 0) {
+      cache.favorites = favs;
+      await fsSaveFavs(currentUser, favs);
+      renderExoList();
+    }
+    localStorage.setItem('rf_onboarded', '1');
+    document.getElementById('onboarding-overlay').style.display = 'none';
+  }
 }
 
 // ─── MISC ─────────────────────────────────────────────────────────────────────
