@@ -1490,8 +1490,7 @@ function renderStats() {
     d.innerHTML=`<div class="exo-stat-name">${exo.name}</div><div class="exo-stat-right"><div class="exo-stat-reps">${reps} ${exo.unit==='sec'?'sec':'reps'}</div><div class="exo-stat-pts">${Math.round(reps*exo.pts)} pts</div></div>`;
     d.onclick=()=>openExoDetail(exo); listEl.appendChild(d);
   });
-  renderChart();
-  renderHeatmap();
+  requestAnimationFrame(()=>{ renderChart(); renderHeatmap(); });
 }
 function renderHeatmap() {
   const grid=document.getElementById('heatmap-grid');
