@@ -120,6 +120,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .heatmap-cell{aspect-ratio:1;border-radius:2px;background:var(--border)}
 .heatmap-cell.l1{background:rgba(200,241,53,0.2)}.heatmap-cell.l2{background:rgba(200,241,53,0.42)}.heatmap-cell.l3{background:rgba(200,241,53,0.68)}.heatmap-cell.l4{background:var(--accent)}
 .heatmap-months{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+/* EXO ANIMATION */
+.exo-anim-wrap{display:none;margin:4px 0 8px;text-align:center}
+.exo-anim-svg{width:160px;height:110px}
+@keyframes pu-body-anim{
+  0%,100%{d:path('M12 88 L38 67 L88 49 M68 57 L68 88 M88 49 L110 88')}
+  50%    {d:path('M12 88 L38 71 L88 71 M68 71 L68 88 M88 71 L110 88')}
+}
+@keyframes pu-head-anim{0%,100%{cy:40}50%{cy:63}}
+.pu-figure{animation:pu-body-anim 1.8s ease-in-out infinite;stroke:#c8f135;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.pu-head{animation:pu-head-anim 1.8s ease-in-out infinite;stroke:#c8f135;stroke-width:2.5;fill:none}
 /* REST TIMER */
 .rest-timer{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:28px;padding:10px 22px;display:none;align-items:center;gap:14px;z-index:150;box-shadow:0 4px 24px rgba(0,0,0,.5)}
 .rest-timer-time{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:var(--accent);min-width:44px;text-align:center}
@@ -574,6 +584,9 @@ body.light {
   <div class="scroll" style="padding-top:0">
     <div class="log-exo-name" id="log-exo-name"></div>
     <div class="log-exo-pts" id="log-exo-pts"></div>
+    <div class="exo-anim-wrap" id="exo-anim-wrap">
+      <svg class="exo-anim-svg" id="exo-anim-svg" viewBox="0 0 130 100"></svg>
+    </div>
     <div class="last-log" id="last-log-info">Aucun log précédent</div>
     <div class="reps-counter">
       <button class="reps-btn" id="reps-btn-minus"
@@ -1227,8 +1240,35 @@ async function confirmRemoveFav() {
   await fsSaveFavs(currentUser,cache.favorites);
 }
 
+const EXO_ANIMS = {
+  'pompes':       'pushup',
+  'wide-push-up': 'pushup',
+  'diamond-pu':   'pushup',
+  'decline-pu':   'pushup',
+  'incline-pu':   'pushup',
+  'archer-pu':    'pushup',
+};
+
+function renderExoAnim(exo) {
+  const wrap = document.getElementById('exo-anim-wrap');
+  const svg  = document.getElementById('exo-anim-svg');
+  const type = EXO_ANIMS[exo.id];
+  if (!type) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  if (type === 'pushup') {
+    svg.innerHTML = `
+      <line x1="4" y1="88" x2="126" y2="88" stroke="rgba(200,241,53,0.12)" stroke-width="1.5"/>
+      <path class="pu-figure" d="M12 88 L38 67 L88 49 M68 57 L68 88 M88 49 L110 88"/>
+      <circle class="pu-head" cx="99" cy="40" r="8"/>
+      <circle cx="12"  cy="88" r="2.5" fill="#c8f135" opacity="0.35"/>
+      <circle cx="68"  cy="88" r="2.5" fill="#c8f135" opacity="0.35"/>
+      <circle cx="110" cy="88" r="2.5" fill="#c8f135" opacity="0.35"/>`;
+  }
+}
+
 function openLog(exo) {
   currentExo=exo;
+  renderExoAnim(exo);
   const logs=cache.myLogs.filter(l=>l.exoId===exo.id).sort((a,b)=>b.ts-a.ts);
   const last=logs[0];
   document.getElementById('log-exo-name').textContent=exo.name;
