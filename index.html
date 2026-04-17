@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap');
 :root {
@@ -574,6 +575,7 @@ body.light {
   <div class="scroll" style="padding-top:0">
     <div class="log-exo-name" id="log-exo-name"></div>
     <div class="log-exo-pts" id="log-exo-pts"></div>
+    <div id="exo-lottie-wrap" style="display:none;height:180px;margin:8px 0"></div>
     <div class="last-log" id="last-log-info">Aucun log précédent</div>
     <div class="reps-counter">
       <button class="reps-btn" id="reps-btn-minus"
@@ -1227,8 +1229,27 @@ async function confirmRemoveFav() {
   await fsSaveFavs(currentUser,cache.favorites);
 }
 
+const EXO_LOTTIE = {
+  'dips':       'dips.json',
+  'bench-dips': 'dips.json',
+};
+let _lottieInstance = null;
+
+function renderExoAnim(exo) {
+  const wrap = document.getElementById('exo-lottie-wrap');
+  const file = EXO_LOTTIE[exo.id];
+  if (_lottieInstance) { _lottieInstance.destroy(); _lottieInstance = null; }
+  if (!file) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  wrap.innerHTML = '';
+  _lottieInstance = lottie.loadAnimation({
+    container: wrap, renderer: 'svg', loop: true, autoplay: true, path: file
+  });
+}
+
 function openLog(exo) {
   currentExo=exo;
+  renderExoAnim(exo);
   const logs=cache.myLogs.filter(l=>l.exoId===exo.id).sort((a,b)=>b.ts-a.ts);
   const last=logs[0];
   document.getElementById('log-exo-name').textContent=exo.name;
