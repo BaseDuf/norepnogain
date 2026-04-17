@@ -92,6 +92,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 /* EXO BUTTONS */
 .exo-btn{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;cursor:pointer;transition:all .15s}
 .exo-btn:active{transform:scale(.98);border-color:var(--accent)}
+.exo-lottie-thumb{width:52px;height:52px;flex-shrink:0;margin-right:12px;border-radius:8px;overflow:hidden;background:var(--bg3)}
 .exo-left{flex:1;min-width:0;text-align:left}
 .exo-name{font-size:16px;font-weight:500;color:var(--text)}
 .exo-pts-label{font-size:13px;color:var(--muted);margin-top:3px}
@@ -1184,6 +1185,7 @@ function renderExoList() {
   Object.entries(cats).forEach(([cat,exos])=>{
     addCatHeader(el,cat); exos.forEach(exo=>addExoBtn(exo,weekLogs,favs,el));
   });
+  requestAnimationFrame(initExoCardAnims);
 }
 function addCatHeader(el,text){const h=document.createElement('div');h.className='cat-header';h.textContent=text;el.appendChild(h);}
 function addExoBtn(exo,weekLogs,favs,el){
@@ -1194,8 +1196,22 @@ function addExoBtn(exo,weekLogs,favs,el){
   const isFav    =favs.includes(exo.id);
   const weekLabel=totalReps>0?`${totalReps}${ul} · ${totalPts} pts`:'pas encore logué';
   const btn=document.createElement('div');btn.className='exo-btn';
-  btn.innerHTML=`<div class="exo-left"><div class="exo-name">${exo.name}</div><div class="exo-pts-label">${fmtPts(exo.pts)} pt/${exo.unit==='sec'?'sec':'rep'} · ${weekLabel}</div></div><button class="fav-btn${isFav?' fav-active':''}" onclick="toggleFav('${exo.id}',event)">★</button><div class="exo-arrow">›</div>`;
+  const hasAnim = !!EXO_LOTTIE_DATA[exo.id];
+  btn.innerHTML=`${hasAnim?`<div class="exo-lottie-thumb" data-exo-anim="${exo.id}"></div>`:''}<div class="exo-left"><div class="exo-name">${exo.name}</div><div class="exo-pts-label">${fmtPts(exo.pts)} pt/${exo.unit==='sec'?'sec':'rep'} · ${weekLabel}</div></div><button class="fav-btn${isFav?' fav-active':''}" onclick="toggleFav('${exo.id}',event)">★</button><div class="exo-arrow">›</div>`;
   btn.onclick=()=>openLog(exo); el.appendChild(btn);
+}
+
+let _lottieCardInstances = [];
+function initExoCardAnims() {
+  _lottieCardInstances.forEach(i => i.destroy());
+  _lottieCardInstances = [];
+  document.querySelectorAll('[data-exo-anim]').forEach(el => {
+    const data = EXO_LOTTIE_DATA[el.dataset.exoAnim];
+    if (!data) return;
+    _lottieCardInstances.push(lottie.loadAnimation({
+      container: el, renderer: 'svg', loop: true, autoplay: true, animationData: data
+    }));
+  });
 }
 
 let _removeFavId = null;
