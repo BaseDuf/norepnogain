@@ -1807,8 +1807,14 @@ function buildDefiCard(defi, logs, isArchived) {
   card.className='defi-card'+(isArchived?' archived':'');
   const isCreator=defi.creator===currentUser;
   if (isArchived) {
-    const winner=rankings[0];
-    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="defi-title" style="color:var(--muted)">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Terminé · Gagnant : ${winner?cap(winner.name):'—'} (${winner?winner.total:0} ${unit})</div>`;
+    const winner=rankings[0]&&rankings[0].total>=defi.target?rankings[0]:null;
+    const leader=rankings[0];
+    const resultStr=winner
+      ? `🏆 Gagnant : ${cap(winner.name)} (${winner.total} ${unit})`
+      : leader&&leader.total>0
+        ? `❌ Objectif non atteint · Meilleur : ${cap(leader.name)} (${leader.total}/${defi.target} ${unit})`
+        : `❌ Objectif non atteint`;
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="defi-title" style="color:var(--muted)">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Terminé · ${resultStr}</div>`;
   } else {
     const daysLeft=Math.max(0,Math.ceil((defi.endTs-Date.now())/86400000));
     const myTotal=(rankings.find(r=>r.name===currentUser)||{total:0}).total;
