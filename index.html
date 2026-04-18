@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Repflow">
@@ -24,7 +24,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
-.app{height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
 
 /* LOADING */
 .loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:16px}
@@ -49,7 +49,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .back-btn:active{color:var(--text)}
 
 /* NAV */
-.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 8px 24px;gap:2px;flex-shrink:0}
+.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 8px calc(8px + env(safe-area-inset-bottom,16px));gap:2px;flex-shrink:0}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;border:none;background:none;color:var(--muted);font-size:10px;font-family:'DM Sans',sans-serif;cursor:pointer;border-radius:var(--radius-sm);transition:color .2s;position:relative}
 .nav-btn.active{color:var(--accent)}
 .nav-btn svg{width:20px;height:20px}
