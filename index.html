@@ -1154,19 +1154,47 @@ function editGoal(type) {
   renderStats();
 }
 async function checkNotifications() {
+  try {
+    const defis = await fsGetDefis();
+    // Défis terminés pas encore vus
+    const notifiedIds = JSON.parse(localStorage.getItem('rf_notified_defis')||'[]');
+    const ended = defis.filter(d =>
+      (!d.active || Date.now() > d.endTs) &&
+      d.participants?.includes(currentUser) &&
+      !notifiedIds.includes(d.id)
+    ).sort((a,b)=>b.endTs-a.endTs);
+    if (ended.length) {
+      const defi = ended[0];
+      const participants = defi.participants?.length ? defi.participants : [currentUser];
+      const logs = await fsGetAllLogsForUsers(participants);
+      const type = defi.type||'reps';
+      const byUser = {};
+      if (type==='reps') {
+        logs.filter(l=>l.exoId===defi.exoId&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+      } else if (type==='points') {
+        logs.filter(l=>l.ts>=defi.startTs).forEach(l=>{const exo=EXERCISES.find(e=>e.id===l.exoId);byUser[l.username]=(byUser[l.username]||0)+(exo?Math.round(l.reps*exo.pts):0);});
+      } else if (type==='multi') {
+        logs.filter(l=>(defi.exoIds||[]).includes(l.exoId)&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
+      }
+      const myTotal = byUser[currentUser]||0;
+      const unit = type==='points'?'pts':type==='multi'?'reps':(defi.unit==='sec'?'sec':'reps');
+      const won = myTotal >= defi.target;
+      const notif = won
+        ? `🏆 Tu as gagné le défi "${defi.title}" ! (${myTotal}/${defi.target} ${unit})`
+        : `😔 Tu as perdu le défi "${defi.title}" (${myTotal}/${defi.target} ${unit})`;
+      showNotif(notif, won ? 'info' : 'warn');
+      // Marquer tous les défis terminés comme vus
+      localStorage.setItem('rf_notified_defis', JSON.stringify([...notifiedIds, ...ended.map(d=>d.id)]));
+      return;
+    }
+    // Check défis expirant dans < 24h
+    const expiring = defis.filter(d=>d.active && d.endTs > Date.now() && d.endTs - Date.now() < 86400000 && d.participants?.includes(currentUser));
+    if (expiring.length) { showNotif(`⏰ Défi "${expiring[0].title}" se termine dans moins de 24h !`,'warn'); return; }
+  } catch(e) {}
   if (!cache.myLogs.length) return;
   const lastTs = Math.max(...cache.myLogs.map(l=>l.ts));
   const hours  = (Date.now()-lastTs)/3600000;
   if (hours>48) { showNotif(`⚡ Ça fait ${Math.floor(hours/24)} jours sans log !`,'warn'); return; }
-  // Check défis expiring in < 24h
-  try {
-    const defis = await fsGetDefis();
-    const expiring = defis.filter(d=>d.active && d.endTs > Date.now() && d.endTs - Date.now() < 86400000);
-    if (expiring.length) {
-      showNotif(`⏰ Défi "${expiring[0].title}" se termine dans moins de 24h !`,'warn');
-      return;
-    }
-  } catch(e) {}
   const pts = calcPts(cache.myLogs.filter(l=>getWeekKey(l.ts)===getThisWeekKey()));
   if (pts>=WEEKLY_GOAL) showNotif(`🎯 Objectif hebdo atteint ! ${pts} pts cette semaine.`,'info');
 }
