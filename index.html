@@ -1800,29 +1800,32 @@ function buildDefiCard(defi, logs, isArchived) {
     logs.filter(l=>(defi.exoIds||[]).includes(l.exoId)&&l.ts>=defi.startTs).forEach(l=>{byUser[l.username]=(byUser[l.username]||0)+l.reps;});
   }
   const rankings=Object.entries(byUser).map(([n,t])=>({name:n,total:t})).sort((a,b)=>b.total-a.total);
-  if (!isArchived && !rankings.find(r=>r.name===currentUser)) rankings.push({name:currentUser,total:0});
-  const maxTotal=Math.max(...rankings.map(r=>r.total),defi.target,1);
+  // S'assurer que tous les participants apparaissent même s'ils n'ont rien loggé
+  const allParticipants=defi.participants?.length?defi.participants:[currentUser];
+  allParticipants.forEach(p=>{if(!rankings.find(r=>r.name===p))rankings.push({name:p,total:0});});
   const unit=type==='points'?'pts':type==='multi'?'reps':(defi.unit==='sec'?'sec':'reps');
   const card=document.createElement('div');
   card.className='defi-card'+(isArchived?' archived':'');
   const isCreator=defi.creator===currentUser;
+  const rankingRows=rankings.map(r=>{
+    const pct=Math.min(100,Math.round(r.total/defi.target*100));
+    const isMe=r.name===currentUser;
+    return`<div class="defi-row"><div class="defi-user" style="${isMe?'color:var(--accent)':''}">${cap(r.name)}</div><div class="defi-bar-wrap"><div class="defi-bar-fill" style="width:${pct}%"></div></div><div class="defi-score">${r.total}/${defi.target} ${unit}</div></div>`;
+  }).join('');
   if (isArchived) {
     const winner=rankings[0]&&rankings[0].total>=defi.target?rankings[0]:null;
     const leader=rankings[0];
     const resultStr=winner
-      ? `🏆 Gagnant : ${cap(winner.name)} (${winner.total} ${unit})`
+      ? `🏆 Gagnant : ${cap(winner.name)}`
       : leader&&leader.total>0
-        ? `❌ Objectif non atteint · Meilleur : ${cap(leader.name)} (${leader.total}/${defi.target} ${unit})`
+        ? `❌ Objectif non atteint`
         : `❌ Objectif non atteint`;
-    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="defi-title" style="color:var(--muted)">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta">Terminé · ${resultStr}</div>`;
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="defi-title" style="color:var(--muted)">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div><div class="defi-meta" style="margin-bottom:10px">Terminé · ${resultStr}</div>${rankingRows}`;
   } else {
     const daysLeft=Math.max(0,Math.ceil((defi.endTs-Date.now())/86400000));
-    const myTotal=(rankings.find(r=>r.name===currentUser)||{total:0}).total;
-    const targetPct=Math.min(100,Math.round(myTotal/defi.target*100));
     const challenged=defi.participants?.length?defi.participants.filter(p=>p!==defi.creator).map(cap).join(', '):'';
     const challengedStr=challenged?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">⚔️ ${cap(defi.creator)} vs ${challenged}</div>`:'';
-    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div>${challengedStr}<div class="defi-meta">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''} · ${targetPct}% atteint</div>`+
-      rankings.map(r=>{const pct=Math.min(100,Math.round(r.total/maxTotal*100));const isMe=r.name===currentUser;return`<div class="defi-row"><div class="defi-user" style="${isMe?'color:var(--accent)':''}">${cap(r.name)}</div><div class="defi-bar-wrap"><div class="defi-bar-fill" style="width:${pct}%"></div></div><div class="defi-score">${r.total} ${unit}</div></div>`;}).join('');
+    card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div>${isCreator?`<button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button>`:''}</div>${challengedStr}<div class="defi-meta" style="margin-bottom:10px">Objectif : ${defi.target} ${unit} · ${daysLeft}j restant${daysLeft>1?'s':''}</div>${rankingRows}`;
   }
   return card;
 }
@@ -1836,10 +1839,20 @@ async function renderDefis(){
   const active=defis.filter(d=>d.active&&Date.now()<=d.endTs&&(!d.participants?.length||d.participants.includes(currentUser)));
   const archived=defis.filter(d=>!d.active||Date.now()>d.endTs);
   if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
-  else active.forEach(defi=>{el.appendChild(buildDefiCard(defi, cache.weekLogs, false));});
+  else {
+    for (const defi of active) {
+      const participants=defi.participants?.length?defi.participants:[currentUser];
+      const logs=await fsGetAllLogsForUsers(participants);
+      el.appendChild(buildDefiCard(defi, logs, false));
+    }
+  }
   if (archived.length){
     const archTitle=document.createElement('div');archTitle.className='defi-archived-title';archTitle.textContent='Défis terminés';el.appendChild(archTitle);
-    archived.forEach(defi=>{el.appendChild(buildDefiCard(defi, cache.weekLogs, true));});
+    for (const defi of archived) {
+      const participants=defi.participants?.length?defi.participants:[currentUser];
+      const logs=await fsGetAllLogsForUsers(participants);
+      el.appendChild(buildDefiCard(defi, logs, true));
+    }
   }
 }
 
