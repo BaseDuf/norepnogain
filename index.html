@@ -70,6 +70,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .btn{width:100%;padding:14px;border-radius:var(--radius-sm);font-size:16px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;border:none}
 .btn-primary{background:var(--accent);color:#0f0f0f}
 .btn-primary:active{background:var(--accent2);transform:scale(.98)}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:active{background:var(--bg2);transform:scale(.98)}
 .btn-ghost{background:var(--bg2);color:var(--text);border:1px solid var(--border)}
 .btn-ghost:active{background:var(--bg3);transform:scale(.98)}
 .btn-sm{padding:8px 16px;font-size:14px;width:auto}
@@ -1165,6 +1167,15 @@ function editGoal(type) {
 async function checkNotifications() {
   try {
     const defis = await fsGetDefis();
+    // Nouvelles invitations en attente
+    const seenInvites=JSON.parse(localStorage.getItem('rf_seen_invites')||'[]');
+    const newInvites=defis.filter(d=>!d.active&&(d.pendingFor||[]).includes(currentUser)&&d.creator!==currentUser&&!seenInvites.includes(d.id));
+    if (newInvites.length){
+      const names=[...new Set(newInvites.map(d=>cap(d.creator)))].join(', ');
+      showNotif(`⚔️ ${names} t'a${newInvites.length>1?'ont':'} défié ! Réponds dans l'onglet Défis.`,'info');
+      localStorage.setItem('rf_seen_invites',JSON.stringify([...seenInvites,...newInvites.map(d=>d.id)]));
+      return;
+    }
     // Défis terminés pas encore vus
     const notifiedIds = JSON.parse(localStorage.getItem('rf_notified_defis')||'[]');
     const ended = defis.filter(d =>
@@ -1224,6 +1235,12 @@ function updateBadges() {
   const pendingIn=cache.friendships.filter(f=>f.status==='pending'&&f.requester!==currentUser).length;
   const ba=document.getElementById('badge-amis');
   if (pendingIn>0){ba.textContent=pendingIn;ba.style.display='';}else ba.style.display='none';
+  // Badge défis : invitations en attente
+  fsGetDefis().then(defis=>{
+    const invites=defis.filter(d=>!d.active&&(d.pendingFor||[]).includes(currentUser)&&d.creator!==currentUser).length;
+    const bd=document.getElementById('badge-defis');
+    if (invites>0){bd.textContent=invites;bd.style.display='';}else bd.style.display='none';
+  }).catch(()=>{});
 }
 
 // ─── LOGGER ───────────────────────────────────────────────────────────────────
@@ -1806,9 +1823,15 @@ async function createDefi(){
   const target=parseInt(document.getElementById('defi-target').value);
   if (!target||target<1) return;
   const days=parseInt(document.getElementById('defi-duration-val').value||1)*parseInt(document.getElementById('defi-duration-unit').value);
-  const end=new Date(); end.setDate(end.getDate()+days); end.setHours(23,59,59,999);
-  const participants=defiMode==='ami'&&defiInvited.length?[currentUser,...defiInvited]:[];
-  const base={type,mode:defiMode,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true,participants};
+  const durationMs=days*86400000;
+  let base;
+  if (defiMode==='ami'&&defiInvited.length){
+    // Pending invitation: wait for all invited to accept before starting
+    base={type,mode:defiMode,target,creator:currentUser,active:false,pendingFor:[...defiInvited],durationMs,participants:[currentUser,...defiInvited]};
+  } else {
+    const end=new Date(); end.setDate(end.getDate()+days); end.setHours(23,59,59,999);
+    base={type,mode:defiMode,target,creator:currentUser,startTs:Date.now(),endTs:end.getTime(),active:true,participants:[]};
+  }
   if (type==='reps'){
     const exoId=document.getElementById('defi-exo').value;
     const exo=EXERCISES.find(e=>e.id===exoId); if (!exo) return;
@@ -1822,6 +1845,63 @@ async function createDefi(){
   }
   toggleCreateDefi(); document.getElementById('defi-target').value='';
   renderDefis(); updateBadges();
+}
+
+async function acceptDefi(id){
+  const defis=await fsGetDefis();
+  const defi=defis.find(d=>d.id===id);
+  if (!defi) return;
+  const newPending=(defi.pendingFor||[]).filter(u=>u!==currentUser);
+  if (newPending.length===0){
+    // All invited users accepted → start the défi now
+    const startTs=Date.now();
+    const endTs=startTs+(defi.durationMs||86400000);
+    await fsUpdateDefi(id,{pendingFor:[],active:true,startTs,endTs});
+  } else {
+    await fsUpdateDefi(id,{pendingFor:newPending});
+  }
+  renderDefis(); updateBadges();
+}
+
+async function refuseDefi(id){
+  const defis=await fsGetDefis();
+  const defi=defis.find(d=>d.id===id);
+  if (!defi) return;
+  const newParticipants=(defi.participants||[]).filter(u=>u!==currentUser);
+  const newPending=(defi.pendingFor||[]).filter(u=>u!==currentUser);
+  if (newParticipants.length<=1){
+    // Only creator left → delete the défi
+    await fsDeleteDefi(id);
+  } else {
+    const updates={participants:newParticipants,pendingFor:newPending};
+    if (newPending.length===0){
+      // Everyone accepted, start the défi
+      const startTs=Date.now();
+      const endTs=startTs+(defi.durationMs||86400000);
+      Object.assign(updates,{active:true,startTs,endTs});
+    }
+    await fsUpdateDefi(id,updates);
+  }
+  renderDefis(); updateBadges();
+}
+
+function buildInviteCard(defi){
+  const card=document.createElement('div');
+  card.className='defi-card';
+  const days=Math.round((defi.durationMs||0)/86400000);
+  const unit=defi.type==='points'?'pts':defi.unit==='sec'?'sec':'reps';
+  card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div></div><div style="font-size:12px;color:var(--muted);margin-bottom:12px">⚔️ ${cap(defi.creator)} te défie — Objectif : ${defi.target} ${unit} en ${days}j</div><div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:8px 4px;font-size:14px" onclick="acceptDefi('${defi.id}')">✅ Accepter</button><button class="btn-secondary" style="flex:1;padding:8px 4px;font-size:14px" onclick="refuseDefi('${defi.id}')">❌ Refuser</button></div>`;
+  return card;
+}
+
+function buildWaitingCard(defi){
+  const card=document.createElement('div');
+  card.className='defi-card';
+  const pending=(defi.pendingFor||[]).map(cap).join(', ');
+  const days=Math.round((defi.durationMs||0)/86400000);
+  const unit=defi.type==='points'?'pts':defi.unit==='sec'?'sec':'reps';
+  card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div class="defi-title">${defi.title}</div><button class="hist-icon-btn del" onclick="deleteDefi('${defi.id}')">🗑</button></div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Objectif : ${defi.target} ${unit} en ${days}j</div><div style="font-size:12px;color:var(--muted)">⏳ En attente de : ${pending}</div>`;
+  return card;
 }
 function buildDefiCard(defi, logs, isArchived) {
   const type=defi.type||'reps';
@@ -1883,15 +1963,36 @@ async function renderDefis(){
   // Archive expired active défis
   const toArchive=defis.filter(d=>d.active&&Date.now()>d.endTs);
   toArchive.forEach(d=>fsUpdateDefi(d.id,{active:false}));
+  // Invitations en attente de réponse de currentUser
+  const invitations=defis.filter(d=>!d.active&&(d.pendingFor||[]).includes(currentUser)&&d.creator!==currentUser);
+  // Défis créés par currentUser en attente de réponse des autres
+  const waiting=defis.filter(d=>!d.active&&d.creator===currentUser&&(d.pendingFor||[]).length>0);
+  // Défis actifs
   const active=defis.filter(d=>d.active&&Date.now()<=d.endTs&&(!d.participants?.length||d.participants.includes(currentUser)));
-  if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
-  else {
+  let hasContent=false;
+  if (invitations.length){
+    hasContent=true;
+    const sec=document.createElement('div');
+    sec.innerHTML='<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:8px">⚔️ Invitations reçues</div>';
+    invitations.forEach(d=>sec.appendChild(buildInviteCard(d)));
+    el.appendChild(sec);
+  }
+  if (waiting.length){
+    hasContent=true;
+    const sec=document.createElement('div');
+    sec.innerHTML=`<div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px${invitations.length?';margin-top:16px':''}">⏳ En attente de réponse</div>`;
+    waiting.forEach(d=>sec.appendChild(buildWaitingCard(d)));
+    el.appendChild(sec);
+  }
+  if (active.length){
+    hasContent=true;
     for (const defi of active) {
       const participants=defi.participants?.length?defi.participants:[currentUser];
       const logs=await fsGetAllLogsForUsers(participants);
       el.appendChild(buildDefiCard(defi, logs, false));
     }
   }
+  if (!hasContent){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
 }
 
 async function renderDefisHistory(){
