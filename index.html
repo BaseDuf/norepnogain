@@ -437,6 +437,11 @@ body.light {
     </div>
 
     <div id="tab-defis" class="tab">
+      <div class="lb-toggle" style="margin-bottom:0;padding:0 0 12px">
+        <button class="lb-toggle-btn active" id="defi-tab-active" onclick="switchDefiView('active')">Actifs</button>
+        <button class="lb-toggle-btn" id="defi-tab-history" onclick="switchDefiView('history')">Historique</button>
+      </div>
+      <div id="defi-view-active">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <div style="font-size:16px;font-weight:500">Défis actifs</div>
@@ -512,6 +517,10 @@ body.light {
         </div>
       </div>
       <div id="defis-list"></div>
+      </div>
+      <div id="defi-view-history" style="display:none">
+        <div id="defis-history-list"></div>
+      </div>
     </div>
 
     <div id="tab-amis" class="tab">
@@ -806,7 +815,7 @@ const DEFAULT_EXO = [
   {id:'scap-pu',      name:'Scapular pull-ups',        pts:1,   unit:'reps',cat:'Tirer'},
   {id:'inverted-rows',name:'Rowing australien',        pts:2,   unit:'reps',cat:'Tirer', weightRef:25},
   {id:'chin-ups',     name:'Chin-ups',                 pts:2,   unit:'reps',cat:'Tirer', weightRef:20},
-  {id:'neutral-pu',   name:'Tractions prise neutre',   pts:3,   unit:'reps',cat:'Tirer', weightRef:20},
+  {id:'neutral-pu',   name:'Tractions',                pts:3,   unit:'reps',cat:'Tirer', weightRef:20},
   {id:'wide-pu',      name:'Tractions prise large',    pts:4,   unit:'reps',cat:'Tirer', weightRef:20},
   {id:'toe-to-bar',   name:'Toes to bar',              pts:4,   unit:'reps',cat:'Tirer'},
   {id:'archer-pull',  name:'Archer pull-ups',          pts:6,   unit:'reps',cat:'Tirer', weightRef:15},
@@ -1858,6 +1867,16 @@ function buildDefiCard(defi, logs, isArchived) {
   return card;
 }
 
+let defiViewMode = 'active';
+function switchDefiView(mode) {
+  defiViewMode = mode;
+  document.getElementById('defi-tab-active').classList.toggle('active', mode==='active');
+  document.getElementById('defi-tab-history').classList.toggle('active', mode==='history');
+  document.getElementById('defi-view-active').style.display = mode==='active' ? '' : 'none';
+  document.getElementById('defi-view-history').style.display = mode==='history' ? '' : 'none';
+  if (mode==='history') renderDefisHistory();
+}
+
 async function renderDefis(){
   const el=document.getElementById('defis-list'); el.innerHTML='';
   const defis=await fsGetDefis();
@@ -1865,7 +1884,6 @@ async function renderDefis(){
   const toArchive=defis.filter(d=>d.active&&Date.now()>d.endTs);
   toArchive.forEach(d=>fsUpdateDefi(d.id,{active:false}));
   const active=defis.filter(d=>d.active&&Date.now()<=d.endTs&&(!d.participants?.length||d.participants.includes(currentUser)));
-  const archived=defis.filter(d=>!d.active||Date.now()>d.endTs);
   if (!active.length){el.innerHTML='<div class="empty-state">Aucun défi actif.<br>Crée le premier !</div>';}
   else {
     for (const defi of active) {
@@ -1874,19 +1892,31 @@ async function renderDefis(){
       el.appendChild(buildDefiCard(defi, logs, false));
     }
   }
-  if (archived.length){
-    const archTitle=document.createElement('div');archTitle.className='defi-archived-title';archTitle.textContent='Défis terminés';el.appendChild(archTitle);
-    for (const defi of archived) {
-      const participants=defi.participants?.length?defi.participants:[currentUser];
-      const logs=await fsGetAllLogsForUsers(participants);
-      el.appendChild(buildDefiCard(defi, logs, true));
-    }
+}
+
+async function renderDefisHistory(){
+  const el=document.getElementById('defis-history-list'); el.innerHTML='<div class="empty-state">Chargement…</div>';
+  const defis=await fsGetDefis();
+  const archived=defis.filter(d=>(!d.active||Date.now()>d.endTs)&&(d.participants?.includes(currentUser)||d.creator===currentUser)).sort((a,b)=>b.endTs-a.endTs);
+  if (!archived.length){el.innerHTML='<div class="empty-state">Aucun défi terminé.</div>';return;}
+  el.innerHTML='';
+  for (const defi of archived) {
+    const participants=defi.participants?.length?defi.participants:[currentUser];
+    const logs=await fsGetAllLogsForUsers(participants);
+    const card=buildDefiCard(defi,logs,true);
+    // Ajouter la date de fin
+    const dateEl=document.createElement('div');
+    dateEl.style.cssText='font-size:11px;color:var(--muted);margin-top:8px;text-align:right';
+    dateEl.textContent='Terminé le '+new Date(defi.endTs).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+    card.appendChild(dateEl);
+    el.appendChild(card);
   }
 }
 
 async function deleteDefi(id){
   await fsDeleteDefi(id);
   renderDefis();
+  if(defiViewMode==='history') renderDefisHistory();
 }
 
 // ─── AMIS ─────────────────────────────────────────────────────────────────────
