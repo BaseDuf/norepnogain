@@ -1408,13 +1408,13 @@ function changeReps(delta){
 let _repHoldTimer=null, _repHoldInterval=null;
 function startRepHold(delta){
   changeReps(delta);
-  let speed=300, count=0;
+  let count=0;
   _repHoldTimer=setTimeout(function fire(){
     changeReps(delta);
     count++;
-    speed=count<5?250:count<15?120:60;
+    const speed=count<5?350:count<15?180:90;
     _repHoldInterval=setTimeout(fire,speed);
-  },400);
+  },650);
 }
 function stopRepHold(){
   clearTimeout(_repHoldTimer);
