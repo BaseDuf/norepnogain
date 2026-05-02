@@ -654,6 +654,14 @@ body.light {
           <div id="settings-pseudo-msg" style="font-size:13px;display:none;margin-top:6px"></div>
         </div>
         <div style="margin-bottom:14px;border-top:1px solid var(--border);padding-top:14px">
+          <label class="form-label">Sexe</label>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="button" class="defi-type-pill" id="settings-sex-h" onclick="saveSex('H')" style="flex:1">Homme</button>
+            <button type="button" class="defi-type-pill" id="settings-sex-f" onclick="saveSex('F')" style="flex:1">Femme</button>
+          </div>
+          <div id="settings-sex-msg" style="font-size:13px;display:none;margin-top:6px;color:var(--accent)"></div>
+        </div>
+        <div style="margin-bottom:14px;border-top:1px solid var(--border);padding-top:14px">
           <label class="form-label">Changer de mot de passe</label>
           <div class="settings-input-row">
             <input class="input" type="password" id="settings-pwd1" placeholder="Nouveau mot de passe"/>
@@ -802,9 +810,11 @@ async function loadAnim(id) {
 
 function resolveAnimId(exo) {
   const sex = (window.cache && window.cache.userProfile && window.cache.userProfile.sex) || 'H';
-  if (sex === 'F' && exo.womanAnim) return exo.womanAnim;
-  if (exo.manAnim) return exo.manAnim;
-  if (exo.womanAnim) return exo.womanAnim;
+  if (sex === 'F') {
+    if (exo.womanAnim) return exo.womanAnim;
+  } else {
+    if (exo.manAnim) return exo.manAnim;
+  }
   // Legacy: exercises without manAnim/womanAnim use their id directly
   if (ANIM_IDS.has(exo.id)) return exo.id;
   return null;
@@ -1894,6 +1904,11 @@ function showScreen(show, hide) {
     document.getElementById('screen-main').classList.add('slide-left');
   }
   document.getElementById(show).classList.remove('hidden','slide-left');
+  if (show === 'screen-settings') {
+    const sex = cache.userProfile && cache.userProfile.sex;
+    document.getElementById('settings-sex-h').classList.toggle('selected', sex === 'H');
+    document.getElementById('settings-sex-f').classList.toggle('selected', sex === 'F');
+  }
 }
 
 // ─── FIRESTORE HELPERS ────────────────────────────────────────────────────────
@@ -3189,6 +3204,19 @@ async function submitEditLog() {
 }
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
+async function saveSex(sex) {
+  cache.userProfile = cache.userProfile || {};
+  cache.userProfile.sex = sex;
+  document.getElementById('settings-sex-h').classList.toggle('selected', sex === 'H');
+  document.getElementById('settings-sex-f').classList.toggle('selected', sex === 'F');
+  const msgEl = document.getElementById('settings-sex-msg');
+  try {
+    await docR('users', currentUser).update({ sex });
+    msgEl.textContent = 'Sauvegardé ✓'; msgEl.style.display = '';
+    setTimeout(() => { msgEl.style.display = 'none'; }, 2000);
+  } catch(e) { msgEl.textContent = 'Erreur…'; msgEl.style.display = ''; }
+}
+
 async function changePseudo() {
   const newPseudo = document.getElementById('settings-pseudo').value.trim().toLowerCase();
   const msgEl = document.getElementById('settings-pseudo-msg');
