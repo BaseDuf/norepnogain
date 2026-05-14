@@ -1914,12 +1914,16 @@ function showScreen(show, hide) {
 // ─── FIRESTORE HELPERS ────────────────────────────────────────────────────────
 async function fsEnsureUser(username) {
   const ref = docR('users', username);
+  const uid = auth.currentUser ? auth.currentUser.uid : null;
   const snap = await ref.get();
   if (!snap.exists) {
     // Créé via signup avec profil complet, ici fallback minimal
-    await ref.set({ username, createdAt: Date.now() });
+    await ref.set({ username, createdAt: Date.now(), uid });
     const adminSnap = await docR('config','admin').get();
     if (!adminSnap.exists) await docR('config','admin').set({ username });
+  } else if (uid && !snap.data().uid) {
+    // Migration : ajoute le uid aux comptes existants
+    await ref.update({ uid });
   }
   return snap.exists ? snap.data() : null;
 }
@@ -2059,7 +2063,7 @@ async function doSignup() {
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pwd);
     await cred.user.updateProfile({ displayName: pseudo });
-    await docR('users', pseudo).set({ username: pseudo, createdAt: Date.now(), bodyWeight: bw, height: ht, sex: selectedSex });
+    await docR('users', pseudo).set({ username: pseudo, createdAt: Date.now(), bodyWeight: bw, height: ht, sex: selectedSex, uid: cred.user.uid });
   } catch(e) {
     showLoading(false);
     errEl.textContent = AUTH_MSGS[e.code] || 'Erreur : ' + e.message;
